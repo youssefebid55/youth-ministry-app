@@ -1,208 +1,47 @@
-export type Json =
-  | string
-  | number
-  | boolean
-  | null
-  | { [key: string]: Json | undefined }
-  | Json[]
+export interface Student {
+  id: string
+  name: string
+  phone: string
+  email?: string
+  parent_phone: string
+  parent_email?: string
+  address?: string
+  grade?: string
+  photo_url?: string
+  assigned_servant_id?: string
+  created_at: string
+  updated_at: string
+}
 
-export interface Database {
-  public: {
-    Tables: {
-      students: {
-        Row: {
-          id: string
-          name: string
-          phone: string | null
-          address: string | null
-          grade: number
-          photo_url: string | null
-          is_active: boolean
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          name: string
-          phone?: string | null
-          address?: string | null
-          grade: number
-          photo_url?: string | null
-          is_active?: boolean
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          name?: string
-          phone?: string | null
-          address?: string | null
-          grade?: number
-          photo_url?: string | null
-          is_active?: boolean
-          created_at?: string
-          updated_at?: string
-        }
-      }
-      servants: {
-        Row: {
-          id: string
-          name: string
-          phone: string
-          is_admin: boolean
-          is_active: boolean
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          name: string
-          phone: string
-          is_admin?: boolean
-          is_active?: boolean
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          name?: string
-          phone?: string
-          is_admin?: boolean
-          is_active?: boolean
-          created_at?: string
-        }
-      }
-      servant_assignments: {
-        Row: {
-          id: string
-          student_id: string
-          servant_id: string
-          assigned_at: string
-        }
-        Insert: {
-          id?: string
-          student_id: string
-          servant_id: string
-          assigned_at?: string
-        }
-        Update: {
-          id?: string
-          student_id?: string
-          servant_id?: string
-          assigned_at?: string
-        }
-      }
-      attendance_records: {
-        Row: {
-          id: string
-          student_id: string
-          attendance_date: string
-          was_present: boolean
-          marked_by_servant_id: string
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          student_id: string
-          attendance_date: string
-          was_present: boolean
-          marked_by_servant_id: string
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          student_id?: string
-          attendance_date?: string
-          was_present?: boolean
-          marked_by_servant_id?: string
-          created_at?: string
-          updated_at?: string
-        }
-      }
-      absence_alerts: {
-        Row: {
-          id: string
-          student_id: string
-          servant_id: string
-          sent_at: string
-          weeks_absent: number
-          followed_up: boolean
-          followed_up_at: string | null
-          followed_up_by_servant_id: string | null
-        }
-        Insert: {
-          id?: string
-          student_id: string
-          servant_id: string
-          sent_at?: string
-          weeks_absent: number
-          followed_up?: boolean
-          followed_up_at?: string | null
-          followed_up_by_servant_id?: string | null
-        }
-        Update: {
-          id?: string
-          student_id?: string
-          servant_id?: string
-          sent_at?: string
-          weeks_absent?: number
-          followed_up?: boolean
-          followed_up_at?: string | null
-          followed_up_by_servant_id?: string | null
-        }
-      }
-      class_cancellations: {
-        Row: {
-          id: string
-          cancellation_date: string
-          reason: string | null
-          marked_by_servant_id: string
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          cancellation_date: string
-          reason?: string | null
-          marked_by_servant_id: string
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          cancellation_date?: string
-          reason?: string | null
-          marked_by_servant_id?: string
-          created_at?: string
-        }
-      }
-      settings: {
-        Row: {
-          id: string
-          key: string
-          value: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          key: string
-          value: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          key?: string
-          value?: string
-          updated_at?: string
-        }
-      }
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      [_ in never]: never
-    }
-    Enums: {
-      [_ in never]: never
-    }
-  }
+export interface Servant {
+  id: string
+  name: string
+  phone: string
+  email: string
+  is_admin: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface AttendanceRecord {
+  id: string
+  student_id: string
+  date: string
+  service_type: 'friday' | 'sunday'
+  present: boolean
+  notes?: string
+  marked_by: string
+  created_at: string
+}
+
+export interface Alert {
+  id: string
+  student_id: string
+  servant_id: string
+  type: 'absence'
+  message: string
+  weeks_absent: number
+  sent_at?: string
+  acknowledged_at?: string
+  created_at: string
 }
