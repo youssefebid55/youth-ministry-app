@@ -45,3 +45,22 @@ export interface Alert {
   acknowledged_at?: string
   created_at: string
 }
+
+export interface Database {
+  public: {
+    Tables: {
+      students: {
+        Row: Student;
+      };
+      servants: {
+        Row: Servant;
+      };
+      attendance_records: {
+        Row: AttendanceRecord;
+      };
+      alerts: {
+        Row: Alert;
+      };
+    };
+  };
+}
