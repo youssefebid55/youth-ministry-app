@@ -1,114 +1,76 @@
-'use client'
+'use client';
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
-import { Users, Mail, ArrowRight, Loader2 } from 'lucide-react'
+import { useState } from 'react';
+import { supabase } from '@/lib/supabase';
+import { Mail } from 'lucide-react';
 
 export default function LoginPage() {
-  const router = useRouter()
-  const [email, setEmail] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [message, setMessage] = useState('')
-  const [error, setError] = useState('')
+  const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
 
   const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    setError('')
-    setMessage('')
+    e.preventDefault();
+    setLoading(true);
+    setMessage('');
 
-    try {
-      const { error } = await supabase.auth.signInWithOtp({
-        email: email,
-        options: {
-          emailRedirectTo: `${window.location.origin}/dashboard`,
-        },
-      })
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+      },
+    });
 
-      if (error) throw error
-
-      setMessage('Check your email for the login link!')
-    } catch (error: any) {
-      setError(error.message || 'An error occurred')
-    } finally {
-      setLoading(false)
+    if (error) {
+      setMessage(error.message);
+    } else {
+      setMessage('Check your email for the login link!');
     }
-  }
+    setLoading(false);
+  };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary-50 to-primary-100">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
       <div className="max-w-md w-full">
-        <div className="text-center mb-8">
-          <div className="flex justify-center mb-4">
-            <Users className="w-16 h-16 text-primary-600" />
-          </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Welcome Back
-          </h1>
-          <p className="text-gray-600">
-            Sign in to access the attendance system
-          </p>
-        </div>
-
         <div className="card">
+          <div className="text-center mb-6">
+            <Mail className="w-12 h-12 text-primary-600 mx-auto mb-4" />
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Sign In</h1>
+            <p className="text-gray-600">Enter your email to receive a magic link</p>
+          </div>
+
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                Email Address
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                Email
               </label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-                <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="servant@church.com"
-                  className="input-field pl-10"
-                  required
-                  disabled={loading}
-                />
-              </div>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="your.email@example.com"
+                required
+                className="input-field w-full"
+              />
             </div>
-
-            {message && (
-              <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm">
-                {message}
-              </div>
-            )}
-
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
-                {error}
-              </div>
-            )}
 
             <button
               type="submit"
               disabled={loading}
-              className="btn-primary w-full flex items-center justify-center gap-2"
+              className="btn-primary w-full"
             >
-              {loading ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  Sending...
-                </>
-              ) : (
-                <>
-                  Sign In with Email
-                  <ArrowRight className="w-5 h-5" />
-                </>
-              )}
+              {loading ? 'Sending...' : 'Send Magic Link'}
             </button>
-          </form>
 
-          <div className="mt-6 pt-6 border-t border-gray-200 text-center text-sm text-gray-600">
-            <p>You'll receive a magic link to sign in</p>
-            <p className="mt-1">No password required!</p>
-          </div>
+            {message && (
+              <p className={`text-sm text-center ${message.includes('Check') ? 'text-green-600' : 'text-red-600'}`}>
+                {message}
+              </p>
+            )}
+          </form>
         </div>
       </div>
     </div>
-  )
+  );
 }
