@@ -10,16 +10,34 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
+  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    // Check if we have a session already (from hash params)
-    const checkSession = async () => {
+    // Handle auth callback from magic link
+    const handleAuthCallback = async () => {
+      // Check if we have hash params (from magic link)
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const accessToken = hashParams.get('access_token');
+      
+      if (accessToken) {
+        // We have tokens, check session
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          router.push('/dashboard');
+          return;
+        }
+      }
+      
+      // No tokens, just check if already logged in
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         router.push('/dashboard');
       }
+      
+      setChecking(false);
     };
-    checkSession();
+
+    handleAuthCallback();
   }, [router]);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -30,7 +48,7 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: `${window.location.origin}/login`,
       },
     });
 
@@ -41,6 +59,14 @@ export default function LoginPage() {
     }
     setLoading(false);
   };
+
+  if (checking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <p>Checking authentication...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
