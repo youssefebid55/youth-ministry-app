@@ -13,28 +13,24 @@ export default function LoginPage() {
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    // Handle auth callback from magic link
     const handleAuthCallback = async () => {
-      // Check if we have hash params (from magic link)
-      const hashParams = new URLSearchParams(window.location.hash.substring(1));
-      const accessToken = hashParams.get('access_token');
-      
-      if (accessToken) {
-        // We have tokens, check session
-        const { data: { session } } = await supabase.auth.getSession();
+      try {
+        // Check for session
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        console.log('Session check:', { session, error });
+        
         if (session) {
+          console.log('Session found, redirecting to dashboard');
           router.push('/dashboard');
-          return;
+        } else {
+          console.log('No session found');
+          setChecking(false);
         }
+      } catch (err) {
+        console.error('Auth error:', err);
+        setChecking(false);
       }
-      
-      // No tokens, just check if already logged in
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        router.push('/dashboard');
-      }
-      
-      setChecking(false);
     };
 
     handleAuthCallback();
@@ -63,7 +59,10 @@ export default function LoginPage() {
   if (checking) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <p>Checking authentication...</p>
+        <div className="text-center">
+          <p className="text-lg mb-2">Checking authentication...</p>
+          <p className="text-sm text-gray-600">If this takes more than 3 seconds, refresh the page</p>
+        </div>
       </div>
     );
   }
