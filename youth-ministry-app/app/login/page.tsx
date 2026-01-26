@@ -10,31 +10,17 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
-  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    const handleAuthCallback = async () => {
-      try {
-        // Check for session
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        console.log('Session check:', { session, error });
-        
-        if (session) {
-          console.log('Session found, redirecting to dashboard');
-          router.push('/dashboard');
-        } else {
-          console.log('No session found');
-          setChecking(false);
-        }
-      } catch (err) {
-        console.error('Auth error:', err);
-        setChecking(false);
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        // Force navigation
+        window.location.href = '/dashboard';
       }
     };
-
-    handleAuthCallback();
-  }, [router]);
+    checkAuth();
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,17 +41,6 @@ export default function LoginPage() {
     }
     setLoading(false);
   };
-
-  if (checking) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <p className="text-lg mb-2">Checking authentication...</p>
-          <p className="text-sm text-gray-600">If this takes more than 3 seconds, refresh the page</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">

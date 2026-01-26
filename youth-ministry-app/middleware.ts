@@ -10,19 +10,14 @@ export async function middleware(req: NextRequest) {
     data: { session },
   } = await supabase.auth.getSession();
 
-  // If accessing dashboard without session, redirect to login
-  if (req.nextUrl.pathname.startsWith('/dashboard') && !session) {
+  // Only protect dashboard - redirect to login if no session
+  if (!session && req.nextUrl.pathname.startsWith('/dashboard')) {
     return NextResponse.redirect(new URL('/login', req.url));
-  }
-
-  // If accessing login with session, redirect to dashboard
-  if (req.nextUrl.pathname === '/login' && session) {
-    return NextResponse.redirect(new URL('/dashboard', req.url));
   }
 
   return res;
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/login'],
+  matcher: ['/dashboard/:path*'],
 };
