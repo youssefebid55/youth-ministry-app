@@ -7,37 +7,45 @@ import { supabase } from '@/lib/supabase';
 export default function AuthCallback() {
   const router = useRouter();
   const [status, setStatus] = useState('Checking authentication...');
+  const [sessionInfo, setSessionInfo] = useState<any>(null);
 
   useEffect(() => {
     const handleCallback = async () => {
       try {
         setStatus('Getting session...');
         
-        // Wait a moment for Supabase to process the hash tokens
+        // Wait for Supabase to process hash tokens
         await new Promise(resolve => setTimeout(resolve, 1000));
         
         const { data: { session }, error } = await supabase.auth.getSession();
         
-        console.log('Callback - Session:', session);
-        console.log('Callback - Error:', error);
+        console.log('Session:', session);
+        console.log('Error:', error);
+        
+        // Show session info on screen for debugging
+        setSessionInfo({
+          hasSession: !!session,
+          email: session?.user?.email || 'No email',
+          error: error?.message || 'No error'
+        });
         
         if (session) {
-          setStatus('Session found! Redirecting to dashboard...');
+          setStatus('✅ Session found! Redirecting in 5 seconds...');
           setTimeout(() => {
             window.location.href = '/dashboard';
-          }, 500);
+          }, 5000); // 5 second delay so you can see it
         } else {
-          setStatus('No session found. Redirecting to login...');
+          setStatus('❌ No session found. Redirecting to login in 5 seconds...');
           setTimeout(() => {
             window.location.href = '/login';
-          }, 2000);
+          }, 5000);
         }
       } catch (err) {
-        console.error('Callback error:', err);
-        setStatus('Error occurred. Redirecting to login...');
+        console.error('Error:', err);
+        setStatus('❌ Error occurred. Redirecting to login in 5 seconds...');
         setTimeout(() => {
           window.location.href = '/login';
-        }, 2000);
+        }, 5000);
       }
     };
 
@@ -46,8 +54,15 @@ export default function AuthCallback() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="text-center">
-        <p className="text-lg">{status}</p>
+      <div className="text-center max-w-md">
+        <p className="text-xl mb-4">{status}</p>
+        {sessionInfo && (
+          <div className="bg-white p-4 rounded-lg shadow text-left mt-4">
+            <p><strong>Has Session:</strong> {sessionInfo.hasSession ? 'YES' : 'NO'}</p>
+            <p><strong>Email:</strong> {sessionInfo.email}</p>
+            <p><strong>Error:</strong> {sessionInfo.error}</p>
+          </div>
+        )}
       </div>
     </div>
   );
