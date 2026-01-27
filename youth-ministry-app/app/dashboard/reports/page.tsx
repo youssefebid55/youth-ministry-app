@@ -1,162 +1,183 @@
-'use client'
+'use client';
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
-import { ArrowLeft, Calendar, Copy, Check } from 'lucide-react'
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
+import { ArrowLeft, Copy, Check } from 'lucide-react';
+
+interface Student {
+  id: string;
+  name: string;
+}
 
 export default function ReportsPage() {
-  const router = useRouter()
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0])
-  const [serviceType, setServiceType] = useState<'friday' | 'sunday'>('friday')
-  const [report, setReport] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [copied, setCopied] = useState(false)
+  const router = useRouter();
+  const [students, setStudents] = useState<Student[]>([]);
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [serviceType, setServiceType] = useState<'friday' | 'sunday'>('friday');
+  const [message, setMessage] = useState('');
+  const [copied, setCopied] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    checkAuth();
+    fetchStudents();
+  }, []);
+
+  const checkAuth = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      router.push('/login');
+    }
+  };
+
+  const fetchStudents = async () => {
+    const { data, error } = await supabase
+      .from('students')
+      .select('id, name')
+      .eq('is_active', true);
+
+    if (error) {
+      console.error('Error fetching students:', error);
+    } else {
+      setStudents(data || []);
+    }
+    setLoading(false);
+  };
 
   const generateReport = async () => {
-    setLoading(true)
-    try {
-      const { data, error } = await supabase
-        .from('attendance_records')
-        .select(`
-          *,
-          students (name)
-        `)
-        .eq('date', date)
-        .eq('service_type', serviceType)
-        .eq('present', true)
-        .order('students(name)')
+    const { data: attendance, error } = await supabase
+      .from('attendance_records')
+      .select('student_id, was_present')
+      .eq('attendance_date', selectedDate);
 
-      if (error) throw error
+    if (error) {
+      console.error('Error fetching attendance:', error);
+      return;
+    }
 
-      if (!data || data.length === 0) {
-        setReport('No attendance recorded for this date.')
-        return
-      }
+    const presentStudentIds = attendance
+      ?.filter(record => record.was_present)
+      .map(record => record.student_id) || [];
 
-      const presentStudents = data.map((record: any) => record.students.name)
-      const serviceName = serviceType === 'friday' ? 'Friday' : 'Sunday'
-      const formattedDate = new Date(date).toLocaleDateString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      })
+    const presentStudents = students
+      .filter(student => presentStudentIds.includes(student.id))
+      .map(student => student.name)
+      .sort();
 
-      const message = `📋 Youth Ministry Attendance - ${serviceName}
-${formattedDate}
+    const serviceLabel = serviceType === 'friday' ? 'Friday' : 'Sunday';
+    const dateFormatted = new Date(selectedDate).toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+
+    const reportMessage = `📋 ${serviceLabel} Service Attendance - ${dateFormatted}
 
 ✅ Present (${presentStudents.length}):
 ${presentStudents.map(name => `• ${name}`).join('\n')}
 
-God bless! 🙏`
+Total: ${presentStudents.length} students attended`;
 
-      setReport(message)
-    } catch (error: any) {
-      alert('Error generating report: ' + error.message)
-    } finally {
-      setLoading(false)
-    }
-  }
+    setMessage(reportMessage);
+  };
 
   const copyToClipboard = () => {
-    navigator.clipboard.writeText(report)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    navigator.clipboard.writeText(message);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-8">
+        <div className="max-w-4xl mx-auto">
+          <p>Loading...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => router.push('/dashboard')}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-            <div>
-              <h1 className="text-xl font-bold text-gray-900">Reports</h1>
-              <p className="text-sm text-gray-600">Generate parent group messages</p>
-            </div>
-          </div>
-        </div>
-      </header>
+    <div className="min-h-screen bg-gray-50 p-8">
+      <div className="max-w-4xl mx-auto">
+        <button
+          onClick={() => router.push('/dashboard')}
+          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Dashboard
+        </button>
 
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="card mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">Select Date & Service</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <div className="card">
+          <h1 className="text-2xl font-bold text-gray-900 mb-6">Generate Parent Message</h1>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Date
               </label>
-              <div className="relative">
-                <Calendar className="absolute left-3 top-3 w-5 h-5 text-gray-400" />
-                <input
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className="input-field pl-10"
-                />
-              </div>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="input-field w-full"
+              />
             </div>
+
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Service
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Service Type
               </label>
               <select
                 value={serviceType}
                 onChange={(e) => setServiceType(e.target.value as 'friday' | 'sunday')}
-                className="input-field"
+                className="input-field w-full"
               >
-                <option value="friday">Friday</option>
-                <option value="sunday">Sunday</option>
+                <option value="friday">Friday Service</option>
+                <option value="sunday">Sunday Service</option>
               </select>
             </div>
           </div>
+
           <button
             onClick={generateReport}
-            disabled={loading}
-            className="btn-primary w-full"
+            className="btn-primary w-full mb-6"
           >
-            {loading ? 'Generating...' : 'Generate Report'}
+            Generate Message
           </button>
-        </div>
 
-        {report && (
-          <div className="card">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">Parent Message</h2>
+          {message && (
+            <div>
+              <div className="bg-gray-50 rounded-lg p-4 mb-4 font-mono text-sm whitespace-pre-wrap">
+                {message}
+              </div>
+
               <button
                 onClick={copyToClipboard}
-                className="btn-secondary flex items-center gap-2"
+                className="btn-secondary w-full flex items-center justify-center gap-2"
               >
                 {copied ? (
                   <>
-                    <Check className="w-5 h-5" />
+                    <Check className="w-4 h-4" />
                     Copied!
                   </>
                 ) : (
                   <>
-                    <Copy className="w-5 h-5" />
-                    Copy
+                    <Copy className="w-4 h-4" />
+                    Copy to Clipboard
                   </>
                 )}
               </button>
+
+              <p className="text-sm text-gray-600 mt-4 text-center">
+                Copy this message and paste it into your parent WhatsApp group
+              </p>
             </div>
-            <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-              <pre className="whitespace-pre-wrap font-sans text-sm text-gray-800">
-                {report}
-              </pre>
-            </div>
-            <p className="text-sm text-gray-600 mt-4">
-              Copy this message and paste it into your parent WhatsApp group chat
-            </p>
-          </div>
-        )}
-      </main>
+          )}
+        </div>
+      </div>
     </div>
-  )
+  );
 }

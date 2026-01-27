@@ -1,208 +1,187 @@
-'use client'
+'use client';
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
-import { ArrowLeft, Save } from 'lucide-react'
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
+import { ArrowLeft } from 'lucide-react';
 
 export default function AddStudentPage() {
-  const router = useRouter()
-  const [saving, setSaving] = useState(false)
+  const router = useRouter();
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
-    email: '',
+    grade: '9',
+    address: '',
     parent_phone: '',
     parent_email: '',
-    address: '',
-    grade: '',
-  })
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData(prev => ({
-      ...prev,
-      [e.target.name]: e.target.value
-    }))
-  }
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setSaving(true)
+    e.preventDefault();
+    setSaving(true);
+    setError('');
 
-    try {
-      const { error } = await supabase
-        .from('students')
-        .insert([formData])
+    const { error } = await supabase
+      .from('students')
+      .insert([{
+        name: formData.name,
+        phone: formData.phone || null,
+        grade: parseInt(formData.grade),
+        address: formData.address || null,
+        parent_phone: formData.parent_phone,
+        parent_email: formData.parent_email || null,
+        is_active: true,
+      }]);
 
-      if (error) throw error
-
-      alert('Student added successfully!')
-      router.push('/dashboard/students')
-    } catch (error: any) {
-      alert('Error adding student: ' + error.message)
-    } finally {
-      setSaving(false)
+    if (error) {
+      setError(error.message);
+      setSaving(false);
+    } else {
+      router.push('/dashboard/students');
     }
-  }
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => router.push('/dashboard/students')}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
+    <div className="min-h-screen bg-gray-50 p-8">
+      <div className="max-w-2xl mx-auto">
+        <button
+          onClick={() => router.push('/dashboard/students')}
+          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Students
+        </button>
+
+        <div className="card">
+          <h1 className="text-2xl font-bold text-gray-900 mb-6">Add New Student</h1>
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Student Information */}
             <div>
-              <h1 className="text-xl font-bold text-gray-900">Add Student</h1>
-              <p className="text-sm text-gray-600">Add a new student to the roster</p>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <form onSubmit={handleSubmit} className="card space-y-6">
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Student Information</h2>
-            <div className="space-y-4">
-              <div>
-                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-                  Full Name *
-                </label>
-                <input
-                  id="name"
-                  name="name"
-                  type="text"
-                  value={formData.name}
-                  onChange={handleChange}
-                  className="input-field"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <h2 className="text-lg font-semibold mb-4">Student Information</h2>
+              
+              <div className="space-y-4">
                 <div>
-                  <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
-                    Phone Number
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Full Name *
                   </label>
                   <input
-                    id="phone"
-                    name="phone"
-                    type="tel"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    className="input-field"
-                    placeholder="(555) 123-4567"
-                  />
-                </div>
-
-                <div>
-                  <label htmlFor="grade" className="block text-sm font-medium text-gray-700 mb-2">
-                    Grade
-                  </label>
-                  <input
-                    id="grade"
-                    name="grade"
                     type="text"
-                    value={formData.grade}
-                    onChange={handleChange}
-                    className="input-field"
-                    placeholder="9, 10, 11, or 12"
+                    required
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="input-field w-full"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Phone Number
+                    </label>
+                    <input
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      className="input-field w-full"
+                      placeholder="+1234567890"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Grade *
+                    </label>
+                    <select
+                      required
+                      value={formData.grade}
+                      onChange={(e) => setFormData({ ...formData, grade: e.target.value })}
+                      className="input-field w-full"
+                    >
+                      <option value="9">9th Grade</option>
+                      <option value="10">10th Grade</option>
+                      <option value="11">11th Grade</option>
+                      <option value="12">12th Grade</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Address
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.address}
+                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                    className="input-field w-full"
+                    placeholder="123 Main St, City, State"
                   />
                 </div>
               </div>
+            </div>
 
-              <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                  Email Address
-                </label>
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  className="input-field"
-                  placeholder="student@email.com"
-                />
-              </div>
+            {/* Parent Information */}
+            <div>
+              <h2 className="text-lg font-semibold mb-4">Parent Information</h2>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Parent Phone Number *
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    value={formData.parent_phone}
+                    onChange={(e) => setFormData({ ...formData, parent_phone: e.target.value })}
+                    className="input-field w-full"
+                    placeholder="+1234567890"
+                  />
+                </div>
 
-              <div>
-                <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-2">
-                  Address
-                </label>
-                <input
-                  id="address"
-                  name="address"
-                  type="text"
-                  value={formData.address}
-                  onChange={handleChange}
-                  className="input-field"
-                  placeholder="123 Main St, City, State"
-                />
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Parent Email Address
+                  </label>
+                  <input
+                    type="email"
+                    value={formData.parent_email}
+                    onChange={(e) => setFormData({ ...formData, parent_email: e.target.value })}
+                    className="input-field w-full"
+                    placeholder="parent@email.com"
+                  />
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="pt-6 border-t border-gray-200">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Parent Information</h2>
-            <div className="space-y-4">
-              <div>
-                <label htmlFor="parent_phone" className="block text-sm font-medium text-gray-700 mb-2">
-                  Parent Phone Number *
-                </label>
-                <input
-                  id="parent_phone"
-                  name="parent_phone"
-                  type="tel"
-                  value={formData.parent_phone}
-                  onChange={handleChange}
-                  className="input-field"
-                  placeholder="(555) 123-4567"
-                  required
-                />
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+                {error}
               </div>
+            )}
 
-              <div>
-                <label htmlFor="parent_email" className="block text-sm font-medium text-gray-700 mb-2">
-                  Parent Email Address
-                </label>
-                <input
-                  id="parent_email"
-                  name="parent_email"
-                  type="email"
-                  value={formData.parent_email}
-                  onChange={handleChange}
-                  className="input-field"
-                  placeholder="parent@email.com"
-                />
-              </div>
+            <div className="flex gap-4">
+              <button
+                type="button"
+                onClick={() => router.push('/dashboard/students')}
+                className="btn-secondary flex-1"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={saving}
+                className="btn-primary flex-1"
+              >
+                {saving ? 'Saving...' : 'Add Student'}
+              </button>
             </div>
-          </div>
-
-          <div className="flex gap-3 pt-6">
-            <button
-              type="button"
-              onClick={() => router.push('/dashboard/students')}
-              className="btn-secondary flex-1"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="btn-primary flex-1 flex items-center justify-center gap-2"
-            >
-              <Save className="w-5 h-5" />
-              {saving ? 'Saving...' : 'Add Student'}
-            </button>
-          </div>
-        </form>
-      </main>
+          </form>
+        </div>
+      </div>
     </div>
-  )
+  );
 }

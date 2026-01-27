@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { AlertCircle, Phone, Mail } from 'lucide-react';
+import { AlertCircle, Phone, Mail, ArrowLeft } from 'lucide-react';
 
 interface Alert {
   id: string;
@@ -34,7 +34,6 @@ export default function AlertsPage() {
   const fetchAlerts = async () => {
     setLoading(true);
     
-    // Get attendance records from the last 6 weeks
     const sixWeeksAgo = new Date();
     sixWeeksAgo.setDate(sixWeeksAgo.getDate() - 42);
     
@@ -60,7 +59,6 @@ export default function AlertsPage() {
       return;
     }
 
-    // Calculate weeks absent for each student
     const alertStudents: Alert[] = [];
     
     students.forEach(student => {
@@ -81,27 +79,11 @@ export default function AlertsPage() {
       }
     });
 
-    // Sort by weeks absent (most to least)
     alertStudents.sort((a, b) => b.weeks_absent - a.weeks_absent);
     
     setAlerts(alertStudents);
     setLoading(false);
   };
-
-  // TODO: Implement follow-up functionality later
-  // const handleFollowUp = async (studentId: string) => {
-  //   const { error } = await supabase
-  //     .from('absence_alerts')
-  //     .update({
-  //       followed_up: true,
-  //       followed_up_at: new Date().toISOString(),
-  //       followed_up_by_servant_id: 'temp-servant-id',
-  //     })
-  //     .eq('student_id', studentId);
-  //   if (!error) {
-  //     fetchAlerts();
-  //   }
-  // };
 
   if (loading) {
     return (
@@ -116,6 +98,14 @@ export default function AlertsPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-4xl mx-auto">
+        <button
+          onClick={() => router.push('/dashboard')}
+          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Dashboard
+        </button>
+
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Absence Alerts</h1>
           <p className="text-gray-600">
@@ -176,8 +166,6 @@ export default function AlertsPage() {
                       </p>
                     </div>
                   </div>
-
-                  {/* TODO: Add follow-up button functionality later */}
                 </div>
               </div>
             ))}
