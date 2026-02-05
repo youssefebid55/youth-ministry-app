@@ -18,11 +18,19 @@ export default function AttendancePage() {
   const [students, setStudents] = useState<Student[]>([]);
   const [attendance, setAttendance] = useState<Record<string, AttendanceStatus>>({});
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const [serviceType, setServiceType] = useState<'friday' | 'sunday'>('friday');
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'grade'>('name');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  // Auto-detect service type from date
+  const getServiceType = (dateString: string): 'friday' | 'sunday' => {
+    const date = new Date(dateString + 'T00:00:00');
+    const dayOfWeek = date.getDay();
+    return dayOfWeek === 5 ? 'friday' : 'sunday';
+  };
+
+  const serviceType = getServiceType(selectedDate);
 
   // TEMPORARILY DISABLED FOR UI DEVELOPMENT
   // useEffect(() => {
@@ -77,7 +85,13 @@ export default function AttendancePage() {
       data.forEach(record => {
         existingAttendance[record.student_id] = record.status as AttendanceStatus;
       });
-      setAttendance(prev => ({ ...prev, ...existingAttendance }));
+      
+      // Reset all to absent, then apply existing records
+      const resetAttendance: Record<string, AttendanceStatus> = {};
+      students.forEach(student => {
+        resetAttendance[student.id] = existingAttendance[student.id] || 'absent';
+      });
+      setAttendance(resetAttendance);
     }
   };
 
@@ -90,9 +104,6 @@ export default function AttendancePage() {
 
   const handleSave = async () => {
     setSaving(true);
-    
-    // Use a dummy servant ID for now since auth is disabled
-    const servantId = '00000000-0000-0000-0000-000000000000';
 
     for (const studentId in attendance) {
       const { error } = await supabase
@@ -102,7 +113,7 @@ export default function AttendancePage() {
           attendance_date: selectedDate,
           was_present: attendance[studentId] === 'present' || attendance[studentId] === 'late',
           status: attendance[studentId],
-          marked_by_servant_id: servantId,
+          // marked_by_servant_id temporarily disabled for UI development
         }, {
           onConflict: 'student_id,attendance_date'
         });
@@ -157,32 +168,19 @@ export default function AttendancePage() {
         <div className="card mb-6">
           <h1 className="text-2xl font-bold text-gray-900 mb-6">Take Attendance</h1>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Date
-              </label>
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="input-field w-full"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Service Type
-              </label>
-              <select
-                value={serviceType}
-                onChange={(e) => setServiceType(e.target.value as 'friday' | 'sunday')}
-                className="input-field w-full"
-              >
-                <option value="friday">Friday Service</option>
-                <option value="sunday">Sunday Service</option>
-              </select>
-            </div>
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Date
+            </label>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="input-field w-full"
+            />
+            <p className="text-sm text-gray-600 mt-1">
+              {serviceType === 'friday' ? '📅 Friday Service' : '⛪ Sunday Service'}
+            </p>
           </div>
 
           <div className="flex gap-4 mb-6">
@@ -193,14 +191,14 @@ export default function AttendancePage() {
                 placeholder="Search students..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="input-field pl-10 w-full"
+                className="input-field pl-10 w-full text-gray-900"
               />
             </div>
 
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as 'name' | 'grade')}
-              className="input-field"
+              className="input-field text-gray-900"
             >
               <option value="name">Sort by Name</option>
               <option value="grade">Sort by Grade</option>
