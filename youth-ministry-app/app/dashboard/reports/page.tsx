@@ -69,15 +69,33 @@ export default function ReportsPage() {
       return;
     }
 
-    // Get students who were present or late (both count as attended)
-    const attendedStudentIds = attendance
-      ?.filter(record => record.status === 'present' || record.status === 'late')
-      .map(record => record.student_id) || [];
+    // Separate students by status
+    const attendanceMap = new Map();
+    attendance?.forEach(record => {
+      attendanceMap.set(record.student_id, record.status);
+    });
 
-    const attendedStudents = students
-      .filter(student => attendedStudentIds.includes(student.id))
-      .map(student => student.name)
-      .sort();
+    const attendedStudents: { name: string; status: string }[] = [];
+
+    students.forEach(student => {
+      const status = attendanceMap.get(student.id);
+      if (status === 'present' || status === 'late') {
+        attendedStudents.push({
+          name: student.name,
+          status: status
+        });
+      }
+    });
+
+    // Sort by name
+    attendedStudents.sort((a, b) => a.name.localeCompare(b.name));
+
+    // Format list with (late) indicator
+    const formattedList = attendedStudents.map(student => 
+      student.status === 'late' 
+        ? `• ${student.name} (late)` 
+        : `• ${student.name}`
+    ).join('\n');
 
     const serviceLabel = serviceType === 'friday' ? 'Friday Bible Study' : 'Sunday School';
     const dateFormatted = new Date(selectedDate).toLocaleDateString('en-US', {
@@ -90,7 +108,7 @@ export default function ReportsPage() {
     const reportMessage = `${serviceType === 'friday' ? '📖' : '⛪'} ${serviceLabel} - ${dateFormatted}
 
 ✅ Attended (${attendedStudents.length}):
-${attendedStudents.map(name => `• ${name}`).join('\n')}
+${formattedList}
 
 Total: ${attendedStudents.length} students attended`;
 
@@ -182,3 +200,20 @@ Total: ${attendedStudents.length} students attended`;
     </div>
   );
 }
+```
+
+**Changes:**
+- ✅ Students marked "late" now show as `• Name (late)` in the report
+- ✅ Students marked "present" show as `• Name` (no indicator)
+- ✅ Total count still includes both present and late
+
+Example output:
+```
+📖 Friday Bible Study - Wednesday, February 5, 2026
+
+✅ Attended (3):
+- John Smith
+- Michael Chen (late)
+- Sara
+
+Total: 3 students attended
