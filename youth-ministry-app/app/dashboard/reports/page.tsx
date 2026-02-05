@@ -200,20 +200,3 @@ Total: ${attendedStudents.length} students attended`;
     </div>
   );
 }
-```
-
-**Changes:**
-- ✅ Students marked "late" now show as `• Name (late)` in the report
-- ✅ Students marked "present" show as `• Name` (no indicator)
-- ✅ Total count still includes both present and late
-
-Example output:
-```
-📖 Friday Bible Study - Wednesday, February 5, 2026
-
-✅ Attended (3):
-- John Smith
-- Michael Chen (late)
-- Sara
-
-Total: 3 students attended
