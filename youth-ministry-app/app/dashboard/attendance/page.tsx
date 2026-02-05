@@ -191,18 +191,22 @@ export default function AttendancePage() {
                 placeholder="Search students..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                style={{ color: '#111827' }}
                 className="input-field pl-10 w-full"
+                style={{ 
+                  color: '#111827',
+                  WebkitTextFillColor: '#111827'
+                }}
               />
             </div>
 
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as 'name' | 'grade')}
-              className="input-field"
+              className="input-field w-auto"
+              style={{ minWidth: '150px' }}
             >
-              <option value="name">Sort by Name</option>
-              <option value="grade">Sort by Grade</option>
+              <option value="name">Name</option>
+              <option value="grade">Grade</option>
             </select>
           </div>
 
