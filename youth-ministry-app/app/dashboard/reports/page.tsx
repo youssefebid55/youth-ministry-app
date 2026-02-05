@@ -8,33 +8,46 @@ import { ArrowLeft, Copy, Check } from 'lucide-react';
 interface Student {
   id: string;
   name: string;
+  grade: number;
 }
 
 export default function ReportsPage() {
   const router = useRouter();
   const [students, setStudents] = useState<Student[]>([]);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const [serviceType, setServiceType] = useState<'friday' | 'sunday'>('friday');
   const [message, setMessage] = useState('');
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(true);
 
+  // Auto-detect service type from date
+  const getServiceType = (dateString: string): 'friday' | 'sunday' => {
+    const date = new Date(dateString + 'T00:00:00');
+    const dayOfWeek = date.getDay();
+    return dayOfWeek === 5 ? 'friday' : 'sunday';
+  };
+
+  const serviceType = getServiceType(selectedDate);
+
+  // TEMPORARILY DISABLED FOR UI DEVELOPMENT
+  // useEffect(() => {
+  //   checkAuth();
+  // }, []);
+
   useEffect(() => {
-    checkAuth();
     fetchStudents();
   }, []);
 
-  const checkAuth = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      router.push('/login');
-    }
-  };
+  // const checkAuth = async () => {
+  //   const { data: { session } } = await supabase.auth.getSession();
+  //   if (!session) {
+  //     router.push('/login');
+  //   }
+  // };
 
   const fetchStudents = async () => {
     const { data, error } = await supabase
       .from('students')
-      .select('id, name')
+      .select('id, name, grade')
       .eq('is_active', true);
 
     if (error) {
@@ -48,7 +61,7 @@ export default function ReportsPage() {
   const generateReport = async () => {
     const { data: attendance, error } = await supabase
       .from('attendance_records')
-      .select('student_id, was_present')
+      .select('student_id, status')
       .eq('attendance_date', selectedDate);
 
     if (error) {
@@ -56,16 +69,17 @@ export default function ReportsPage() {
       return;
     }
 
-    const presentStudentIds = attendance
-      ?.filter(record => record.was_present)
+    // Get students who were present or late (both count as attended)
+    const attendedStudentIds = attendance
+      ?.filter(record => record.status === 'present' || record.status === 'late')
       .map(record => record.student_id) || [];
 
-    const presentStudents = students
-      .filter(student => presentStudentIds.includes(student.id))
+    const attendedStudents = students
+      .filter(student => attendedStudentIds.includes(student.id))
       .map(student => student.name)
       .sort();
 
-    const serviceLabel = serviceType === 'friday' ? 'Friday' : 'Sunday';
+    const serviceLabel = serviceType === 'friday' ? 'Friday Bible Study' : 'Sunday School';
     const dateFormatted = new Date(selectedDate).toLocaleDateString('en-US', {
       weekday: 'long',
       year: 'numeric',
@@ -73,12 +87,12 @@ export default function ReportsPage() {
       day: 'numeric'
     });
 
-    const reportMessage = `📋 ${serviceLabel} Service Attendance - ${dateFormatted}
+    const reportMessage = `${serviceType === 'friday' ? '📖' : '⛪'} ${serviceLabel} - ${dateFormatted}
 
-✅ Present (${presentStudents.length}):
-${presentStudents.map(name => `• ${name}`).join('\n')}
+✅ Attended (${attendedStudents.length}):
+${attendedStudents.map(name => `• ${name}`).join('\n')}
 
-Total: ${presentStudents.length} students attended`;
+Total: ${attendedStudents.length} students attended`;
 
     setMessage(reportMessage);
   };
@@ -113,32 +127,19 @@ Total: ${presentStudents.length} students attended`;
         <div className="card">
           <h1 className="text-2xl font-bold text-gray-900 mb-6">Generate Parent Message</h1>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Date
-              </label>
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="input-field w-full"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Service Type
-              </label>
-              <select
-                value={serviceType}
-                onChange={(e) => setServiceType(e.target.value as 'friday' | 'sunday')}
-                className="input-field w-full"
-              >
-                <option value="friday">Friday Service</option>
-                <option value="sunday">Sunday Service</option>
-              </select>
-            </div>
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Date
+            </label>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="input-field w-full"
+            />
+            <p className="text-sm text-gray-600 mt-1">
+              {serviceType === 'friday' ? '📖 Friday Bible Study' : '⛪ Sunday School'}
+            </p>
           </div>
 
           <button
