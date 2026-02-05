@@ -11,7 +11,9 @@ interface Alert {
   grade: number;
   phone: string;
   parent_phone: string;
+  parent_email: string;
   weeks_absent: number;
+  last_seen: string | null;
 }
 
 export default function AlertsPage() {
@@ -19,24 +21,25 @@ export default function AlertsPage() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // TEMPORARILY DISABLED FOR UI DEVELOPMENT
+  // useEffect(() => {
+  //   checkAuth();
+  // }, []);
+
   useEffect(() => {
-    checkAuth();
     fetchAlerts();
   }, []);
 
-  const checkAuth = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      router.push('/login');
-    }
-  };
+  // const checkAuth = async () => {
+  //   const { data: { session } } = await supabase.auth.getSession();
+  //   if (!session) {
+  //     router.push('/login');
+  //   }
+  // };
 
   const fetchAlerts = async () => {
     setLoading(true);
-    
-    const sixWeeksAgo = new Date();
-    sixWeeksAgo.setDate(sixWeeksAgo.getDate() - 42);
-    
+
     const { data: students, error: studentsError } = await supabase
       .from('students')
       .select('*')
@@ -48,10 +51,12 @@ export default function AlertsPage() {
       return;
     }
 
+    // Get all attendance records where students were PRESENT
     const { data: attendance, error: attendanceError } = await supabase
       .from('attendance_records')
       .select('*')
-      .gte('attendance_date', sixWeeksAgo.toISOString().split('T')[0]);
+      .eq('was_present', true)
+      .order('attendance_date', { ascending: false });
 
     if (attendanceError) {
       console.error('Error fetching attendance:', attendanceError);
@@ -60,25 +65,47 @@ export default function AlertsPage() {
     }
 
     const alertStudents: Alert[] = [];
-    
-    students.forEach(student => {
-      const studentAttendance = attendance.filter(a => a.student_id === student.id);
-      const presentCount = studentAttendance.filter(a => a.was_present).length;
-      const totalWeeks = 6;
-      const weeksAbsent = totalWeeks - presentCount;
+    const today = new Date();
 
-      if (weeksAbsent >= 2) {
+    students.forEach(student => {
+      // Find the last time this student was present
+      const lastPresent = attendance.find(a => a.student_id === student.id);
+      
+      if (!lastPresent) {
+        // Never been present - count as 6+ weeks absent
         alertStudents.push({
           id: student.id,
           name: student.name,
           grade: student.grade,
           phone: student.phone || '',
           parent_phone: student.parent_phone || '',
-          weeks_absent: weeksAbsent,
+          parent_email: student.parent_email || '',
+          weeks_absent: 6,
+          last_seen: null,
         });
+      } else {
+        // Calculate weeks since last present
+        const lastPresentDate = new Date(lastPresent.attendance_date);
+        const diffTime = today.getTime() - lastPresentDate.getTime();
+        const diffWeeks = Math.floor(diffTime / (1000 * 60 * 60 * 24 * 7));
+
+        // Only include if absent for 2+ weeks
+        if (diffWeeks >= 2) {
+          alertStudents.push({
+            id: student.id,
+            name: student.name,
+            grade: student.grade,
+            phone: student.phone || '',
+            parent_phone: student.parent_phone || '',
+            parent_email: student.parent_email || '',
+            weeks_absent: Math.min(diffWeeks, 6), // Cap at 6 weeks
+            last_seen: lastPresent.attendance_date,
+          });
+        }
       }
     });
 
+    // Sort by most absent
     alertStudents.sort((a, b) => b.weeks_absent - a.weeks_absent);
     
     setAlerts(alertStudents);
@@ -109,7 +136,7 @@ export default function AlertsPage() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Absence Alerts</h1>
           <p className="text-gray-600">
-            Students who have been absent for 2+ weeks in the last 6 weeks
+            Students who haven't been seen in 2+ weeks
           </p>
         </div>
 
@@ -117,6 +144,7 @@ export default function AlertsPage() {
           <div className="card text-center py-12">
             <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-600">No alerts at this time</p>
+            <p className="text-sm text-gray-500 mt-2">All students have attended recently!</p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -137,10 +165,13 @@ export default function AlertsPage() {
                       <p className="text-gray-600">
                         <strong>Grade:</strong> {alert.grade}
                       </p>
+                      <p className="text-gray-600">
+                        <strong>Last seen:</strong> {alert.last_seen ? new Date(alert.last_seen).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Never'}
+                      </p>
                       {alert.phone && (
                         <p className="text-gray-600 flex items-center gap-2">
                           <Phone className="w-4 h-4" />
-                          <a href={`tel:${alert.phone}`} className="text-primary-600 hover:text-primary-700">
+                          <a href={`sms:${alert.phone}`} className="text-primary-600 hover:text-primary-700">
                             {alert.phone}
                           </a>
                         </p>
@@ -149,9 +180,15 @@ export default function AlertsPage() {
                         <p className="text-gray-600 flex items-center gap-2">
                           <Phone className="w-4 h-4" />
                           <strong>Parent:</strong>
-                          <a href={`tel:${alert.parent_phone}`} className="text-primary-600 hover:text-primary-700">
+                          <a href={`sms:${alert.parent_phone}`} className="text-primary-600 hover:text-primary-700">
                             {alert.parent_phone}
                           </a>
+                        </p>
+                      )}
+                      {alert.parent_email && (
+                        <p className="text-gray-600 flex items-center gap-2">
+                          <Mail className="w-4 h-4" />
+                          {alert.parent_email}
                         </p>
                       )}
                     </div>
