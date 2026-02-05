@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { ArrowLeft, Search } from 'lucide-react';
+import { ArrowLeft, Search, XCircle } from 'lucide-react';
 
 interface Student {
   id: string;
@@ -22,6 +22,7 @@ export default function AttendancePage() {
   const [sortBy, setSortBy] = useState<'name' | 'grade'>('name');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [isCancelled, setIsCancelled] = useState(false);
 
   // Auto-detect service type from date
   const getServiceType = (dateString: string): 'friday' | 'sunday' => {
@@ -45,6 +46,7 @@ export default function AttendancePage() {
     if (students.length > 0) {
       loadExistingAttendance();
     }
+    checkIfCancelled();
   }, [selectedDate, students]);
 
   // const checkAuth = async () => {
@@ -53,6 +55,16 @@ export default function AttendancePage() {
   //     router.push('/login');
   //   }
   // };
+
+  const checkIfCancelled = async () => {
+    const { data, error } = await supabase
+      .from('class_cancellations')
+      .select('*')
+      .eq('cancellation_date', selectedDate)
+      .single();
+
+    setIsCancelled(!!data && !error);
+  };
 
   const fetchStudents = async () => {
     const { data, error } = await supabase
@@ -102,7 +114,52 @@ export default function AttendancePage() {
     }));
   };
 
+  const handleCancelClass = async () => {
+    if (isCancelled) {
+      // Uncancel - delete the cancellation record
+      const { error } = await supabase
+        .from('class_cancellations')
+        .delete()
+        .eq('cancellation_date', selectedDate);
+
+      if (!error) {
+        setIsCancelled(false);
+        alert('Class unmarked as cancelled');
+      } else {
+        console.error('Error uncancelling class:', error);
+        alert('Error uncancelling class');
+      }
+    } else {
+      // Cancel the class
+      const confirmCancel = confirm(
+        `Mark ${serviceType === 'friday' ? 'Friday Bible Study' : 'Sunday School'} on ${new Date(selectedDate).toLocaleDateString()} as cancelled?\n\nThis date will not count toward absence alerts.`
+      );
+
+      if (!confirmCancel) return;
+
+      const { error } = await supabase
+        .from('class_cancellations')
+        .insert([{
+          cancellation_date: selectedDate,
+          reason: 'Cancelled via attendance page'
+        }]);
+
+      if (!error) {
+        setIsCancelled(true);
+        alert('Class marked as cancelled');
+      } else {
+        console.error('Error cancelling class:', error);
+        alert('Error marking class as cancelled');
+      }
+    }
+  };
+
   const handleSave = async () => {
+    if (isCancelled) {
+      alert('Cannot save attendance for a cancelled class. Uncancel the class first.');
+      return;
+    }
+
     setSaving(true);
 
     for (const studentId in attendance) {
@@ -168,6 +225,18 @@ export default function AttendancePage() {
         <div className="card mb-6">
           <h1 className="text-2xl font-bold text-gray-900 mb-6">Take Attendance</h1>
 
+          {isCancelled && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+              <div className="flex items-center gap-2 text-red-800">
+                <XCircle className="w-5 h-5" />
+                <p className="font-medium">This class was cancelled</p>
+              </div>
+              <p className="text-sm text-red-700 mt-1">
+                This date will not count toward absence alerts.
+              </p>
+            </div>
+          )}
+
           <div className="mb-6">
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Date
@@ -184,105 +253,123 @@ export default function AttendancePage() {
           </div>
 
           <div className="flex gap-4 mb-6">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search students..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="input-field pl-10 w-full"
-                style={{ 
-                  color: '#111827',
-                  WebkitTextFillColor: '#111827'
-                }}
-              />
-            </div>
-
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as 'name' | 'grade')}
-              className="input-field w-auto"
-              style={{ minWidth: '150px' }}
+            <button
+              onClick={handleCancelClass}
+              className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all flex items-center justify-center gap-2 ${
+                isCancelled
+                  ? 'bg-gray-500 text-white hover:bg-gray-600'
+                  : 'bg-red-500 text-white hover:bg-red-600'
+              }`}
             >
-              <option value="name">Name</option>
-              <option value="grade">Grade</option>
-            </select>
+              <XCircle className="w-5 h-5" />
+              {isCancelled ? 'Uncancel Class' : 'Mark Class as Cancelled'}
+            </button>
           </div>
 
-          <div className="grid grid-cols-3 gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">{presentCount}</div>
-              <div className="text-sm text-gray-600">Present</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-yellow-600">{lateCount}</div>
-              <div className="text-sm text-gray-600">Late</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-red-600">{absentCount}</div>
-              <div className="text-sm text-gray-600">Absent</div>
-            </div>
-          </div>
-
-          <div className="space-y-3 mb-6">
-            {filteredAndSortedStudents.map((student) => (
-              <div
-                key={student.id}
-                className="p-4 rounded-lg border-2 bg-white"
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <div>
-                    <div className="font-medium text-gray-900">{student.name}</div>
-                    <div className="text-sm text-gray-600">Grade {student.grade}</div>
-                  </div>
+          {!isCancelled && (
+            <>
+              <div className="flex gap-4 mb-6">
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search students..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="input-field pl-10 w-full"
+                    style={{ 
+                      color: '#111827',
+                      WebkitTextFillColor: '#111827'
+                    }}
+                  />
                 </div>
 
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setAttendanceStatus(student.id, 'present')}
-                    className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${
-                      attendance[student.id] === 'present'
-                        ? 'bg-green-500 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    Present
-                  </button>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as 'name' | 'grade')}
+                  className="input-field w-auto"
+                  style={{ minWidth: '150px' }}
+                >
+                  <option value="name">Name</option>
+                  <option value="grade">Grade</option>
+                </select>
+              </div>
 
-                  <button
-                    onClick={() => setAttendanceStatus(student.id, 'late')}
-                    className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${
-                      attendance[student.id] === 'late'
-                        ? 'bg-yellow-500 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    Late
-                  </button>
-
-                  <button
-                    onClick={() => setAttendanceStatus(student.id, 'absent')}
-                    className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${
-                      attendance[student.id] === 'absent'
-                        ? 'bg-red-500 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    Absent
-                  </button>
+              <div className="grid grid-cols-3 gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-600">{presentCount}</div>
+                  <div className="text-sm text-gray-600">Present</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-yellow-600">{lateCount}</div>
+                  <div className="text-sm text-gray-600">Late</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-red-600">{absentCount}</div>
+                  <div className="text-sm text-gray-600">Absent</div>
                 </div>
               </div>
-            ))}
-          </div>
 
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="btn-primary w-full"
-          >
-            {saving ? 'Saving...' : 'Save Attendance'}
-          </button>
+              <div className="space-y-3 mb-6">
+                {filteredAndSortedStudents.map((student) => (
+                  <div
+                    key={student.id}
+                    className="p-4 rounded-lg border-2 bg-white"
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <div className="font-medium text-gray-900">{student.name}</div>
+                        <div className="text-sm text-gray-600">Grade {student.grade}</div>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setAttendanceStatus(student.id, 'present')}
+                        className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${
+                          attendance[student.id] === 'present'
+                            ? 'bg-green-500 text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        Present
+                      </button>
+
+                      <button
+                        onClick={() => setAttendanceStatus(student.id, 'late')}
+                        className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${
+                          attendance[student.id] === 'late'
+                            ? 'bg-yellow-500 text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        Late
+                      </button>
+
+                      <button
+                        onClick={() => setAttendanceStatus(student.id, 'absent')}
+                        className={`flex-1 py-2 px-4 rounded-lg font-medium transition-all ${
+                          attendance[student.id] === 'absent'
+                            ? 'bg-red-500 text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                      >
+                        Absent
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="btn-primary w-full"
+              >
+                {saving ? 'Saving...' : 'Save Attendance'}
+              </button>
+            </>
+          )}
         </div>
       </div>
     </div>

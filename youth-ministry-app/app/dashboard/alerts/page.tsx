@@ -51,6 +51,15 @@ export default function AlertsPage() {
       return;
     }
 
+    // Get cancelled class dates
+    const { data: cancelledDates } = await supabase
+      .from('class_cancellations')
+      .select('cancellation_date')
+
+    const cancelledDateSet = new Set(
+      cancelledDates?.map(c => c.cancellation_date) || []
+    )
+
     // Get all attendance records where students were PRESENT
     const { data: attendance, error: attendanceError } = await supabase
       .from('attendance_records')
@@ -64,12 +73,17 @@ export default function AlertsPage() {
       return;
     }
 
+    // Filter out attendance from cancelled dates
+    const validAttendance = attendance?.filter(
+      a => !cancelledDateSet.has(a.attendance_date)
+    ) || []
+
     const alertStudents: Alert[] = [];
     const today = new Date();
 
     students.forEach(student => {
-      // Find the last time this student was present
-      const lastPresent = attendance.find(a => a.student_id === student.id);
+      // Find the last time this student was present (excluding cancelled dates)
+      const lastPresent = validAttendance.find(a => a.student_id === student.id);
       
       if (!lastPresent) {
         // Never been present - count as 6+ weeks absent
@@ -136,7 +150,7 @@ export default function AlertsPage() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Absence Alerts</h1>
           <p className="text-gray-600">
-            Students who haven't been seen in 2+ weeks
+            Students who haven't been seen in 2+ weeks (excluding cancelled classes)
           </p>
         </div>
 

@@ -89,21 +89,33 @@ export default function DashboardPage() {
 
       setBirthdaysToday(birthdayStudents)
 
-      // Get all attendance records where students were PRESENT
+      // Get cancelled class dates
+      const { data: cancelledDates } = await supabase
+        .from('class_cancellations')
+        .select('cancellation_date')
+
+      const cancelledDateSet = new Set(
+        cancelledDates?.map(c => c.cancellation_date) || []
+      )
+
+      // Get all attendance records where students were PRESENT (excluding cancelled dates)
       const { data: attendance } = await supabase
         .from('attendance_records')
         .select('*')
         .eq('was_present', true)
         .order('attendance_date', { ascending: false })
 
-      if (attendance) {
+      // Filter out attendance from cancelled dates
+      const validAttendance = attendance?.filter(
+        a => !cancelledDateSet.has(a.attendance_date)
+      ) || []
+
+      if (validAttendance) {
         const absentStudents: AbsentStudent[] = []
-        const twoWeeksAgo = new Date()
-        twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14)
 
         students.forEach(student => {
-          // Find the last time this student was present
-          const lastPresent = attendance.find(a => a.student_id === student.id)
+          // Find the last time this student was present (excluding cancelled dates)
+          const lastPresent = validAttendance.find(a => a.student_id === student.id)
           
           if (!lastPresent) {
             // Never been present - count as 6+ weeks absent
