@@ -59,10 +59,10 @@ export default function Home() {
           </div>
 
           <button
-            onClick={() => router.push('/login')}
+            onClick={() => router.push('/dashboard')}
             className="btn-primary w-full mt-6"
           >
-            Sign In
+            Get Started
           </button>
         </div>
       </div>
