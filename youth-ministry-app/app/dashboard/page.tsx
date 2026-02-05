@@ -17,34 +17,35 @@ import {
 export default function DashboardPage() {
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false) // Changed from true to false
 
-  useEffect(() => {
-    checkUser()
-  }, [])
+  // TEMPORARILY DISABLED FOR UI DEVELOPMENT
+  // useEffect(() => {
+  //   checkUser()
+  // }, [])
 
-  const checkUser = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser()
+  // const checkUser = async () => {
+  //   try {
+  //     const { data: { user } } = await supabase.auth.getUser()
       
-      if (!user) {
-        router.push('/login')
-        return
-      }
+  //     if (!user) {
+  //       router.push('/login')
+  //       return
+  //     }
       
-      setUser(user)
-    } catch (error) {
-      console.error('Error:', error)
-      router.push('/login')
-    } finally {
-      setLoading(false)
-    }
-  }
+  //     setUser(user)
+  //   } catch (error) {
+  //     console.error('Error:', error)
+  //     router.push('/login')
+  //   } finally {
+  //     setLoading(false)
+  //   }
+  // }
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut()
-    router.push('/')
-  }
+  // const handleLogout = async () => {
+  //   await supabase.auth.signOut()
+  //   router.push('/')
+  // }
 
   if (loading) {
     return (
@@ -67,16 +68,17 @@ export default function DashboardPage() {
               <Users className="w-8 h-8 text-primary-600" />
               <div>
                 <h1 className="text-xl font-bold text-gray-900">Youth Ministry</h1>
-                <p className="text-sm text-gray-600">{user?.email}</p>
+                <p className="text-sm text-gray-600">Development Mode</p>
               </div>
             </div>
-            <button
+            {/* TEMPORARILY DISABLED FOR UI DEVELOPMENT */}
+            {/* <button
               onClick={handleLogout}
               className="flex items-center gap-2 text-gray-600 hover:text-red-600 transition-colors"
             >
               <LogOut className="w-5 h-5" />
               <span className="hidden sm:inline">Sign Out</span>
-            </button>
+            </button> */}
           </div>
         </div>
       </header>
