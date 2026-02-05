@@ -179,7 +179,7 @@ export default function AttendancePage() {
               className="input-field w-full"
             />
             <p className="text-sm text-gray-600 mt-1">
-              {serviceType === 'friday' ? '📅 Friday Service' : '⛪ Sunday Service'}
+              {serviceType === 'friday' ? '📖 Friday Bible Study' : '⛪ Sunday School'}
             </p>
           </div>
 
@@ -191,14 +191,15 @@ export default function AttendancePage() {
                 placeholder="Search students..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="input-field pl-10 w-full text-gray-900"
+                style={{ color: '#111827' }}
+                className="input-field pl-10 w-full"
               />
             </div>
 
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as 'name' | 'grade')}
-              className="input-field text-gray-900"
+              className="input-field"
             >
               <option value="name">Sort by Name</option>
               <option value="grade">Sort by Grade</option>
