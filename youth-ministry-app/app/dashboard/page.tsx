@@ -89,30 +89,45 @@ export default function DashboardPage() {
 
       setBirthdaysToday(birthdayStudents)
 
-      // Get recent absences (last 6 weeks)
-      const sixWeeksAgo = new Date()
-      sixWeeksAgo.setDate(sixWeeksAgo.getDate() - 42)
-
+      // Get all attendance records where students were PRESENT
       const { data: attendance } = await supabase
         .from('attendance_records')
         .select('*')
-        .gte('attendance_date', sixWeeksAgo.toISOString().split('T')[0])
+        .eq('was_present', true)
+        .order('attendance_date', { ascending: false })
 
       if (attendance) {
         const absentStudents: AbsentStudent[] = []
+        const twoWeeksAgo = new Date()
+        twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14)
 
         students.forEach(student => {
-          const studentAttendance = attendance.filter(a => a.student_id === student.id)
-          const presentCount = studentAttendance.filter(a => a.was_present).length
-          const weeksAbsent = 6 - presentCount
-
-          if (weeksAbsent >= 2) {
+          // Find the last time this student was present
+          const lastPresent = attendance.find(a => a.student_id === student.id)
+          
+          if (!lastPresent) {
+            // Never been present - count as 6+ weeks absent
             absentStudents.push({
               id: student.id,
               name: student.name,
               grade: student.grade,
-              weeks_absent: weeksAbsent,
+              weeks_absent: 6,
             })
+          } else {
+            // Calculate weeks since last present
+            const lastPresentDate = new Date(lastPresent.attendance_date)
+            const diffTime = today.getTime() - lastPresentDate.getTime()
+            const diffWeeks = Math.floor(diffTime / (1000 * 60 * 60 * 24 * 7))
+
+            // Only include if absent for 2+ weeks
+            if (diffWeeks >= 2) {
+              absentStudents.push({
+                id: student.id,
+                name: student.name,
+                grade: student.grade,
+                weeks_absent: Math.min(diffWeeks, 6), // Cap at 6 weeks
+              })
+            }
           }
         })
 
