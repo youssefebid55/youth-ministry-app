@@ -11,18 +11,42 @@ import {
   LogOut,
   BarChart3,
   UserPlus,
-  Calendar
+  Calendar,
+  Cake,
+  AlertCircle,
+  ArrowRight
 } from 'lucide-react'
+
+interface Student {
+  id: string
+  name: string
+  grade: number
+  date_of_birth: string | null
+}
+
+interface AbsentStudent {
+  id: string
+  name: string
+  grade: number
+  weeks_absent: number
+}
 
 export default function DashboardPage() {
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
-  const [loading, setLoading] = useState(false) // Changed from true to false
+  const [loading, setLoading] = useState(false)
+  const [totalStudents, setTotalStudents] = useState(0)
+  const [birthdaysToday, setBirthdaysToday] = useState<Student[]>([])
+  const [recentAbsences, setRecentAbsences] = useState<AbsentStudent[]>([])
 
   // TEMPORARILY DISABLED FOR UI DEVELOPMENT
   // useEffect(() => {
   //   checkUser()
   // }, [])
+
+  useEffect(() => {
+    fetchDashboardData()
+  }, [])
 
   // const checkUser = async () => {
   //   try {
@@ -41,6 +65,63 @@ export default function DashboardPage() {
   //     setLoading(false)
   //   }
   // }
+
+  const fetchDashboardData = async () => {
+    // Get total students
+    const { data: students, error: studentsError } = await supabase
+      .from('students')
+      .select('*')
+      .eq('is_active', true)
+
+    if (!studentsError && students) {
+      setTotalStudents(students.length)
+
+      // Get birthdays today
+      const today = new Date()
+      const todayMonth = today.getMonth() + 1 // JS months are 0-indexed
+      const todayDay = today.getDate()
+
+      const birthdayStudents = students.filter(student => {
+        if (!student.date_of_birth) return false
+        const dob = new Date(student.date_of_birth)
+        return dob.getMonth() + 1 === todayMonth && dob.getDate() === todayDay
+      })
+
+      setBirthdaysToday(birthdayStudents)
+
+      // Get recent absences (last 6 weeks)
+      const sixWeeksAgo = new Date()
+      sixWeeksAgo.setDate(sixWeeksAgo.getDate() - 42)
+
+      const { data: attendance } = await supabase
+        .from('attendance_records')
+        .select('*')
+        .gte('attendance_date', sixWeeksAgo.toISOString().split('T')[0])
+
+      if (attendance) {
+        const absentStudents: AbsentStudent[] = []
+
+        students.forEach(student => {
+          const studentAttendance = attendance.filter(a => a.student_id === student.id)
+          const presentCount = studentAttendance.filter(a => a.was_present).length
+          const weeksAbsent = 6 - presentCount
+
+          if (weeksAbsent >= 2) {
+            absentStudents.push({
+              id: student.id,
+              name: student.name,
+              grade: student.grade,
+              weeks_absent: weeksAbsent,
+            })
+          }
+        })
+
+        // Sort by most absent and take top 5
+        absentStudents.sort((a, b) => b.weeks_absent - a.weeks_absent)
+        setRecentAbsences(absentStudents.slice(0, 5))
+      }
+    }
+  }
 
   // const handleLogout = async () => {
   //   await supabase.auth.signOut()
@@ -85,8 +166,96 @@ export default function DashboardPage() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Stats Overview */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="card bg-gradient-to-br from-blue-50 to-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 mb-1">Total Students</p>
+                <p className="text-3xl font-bold text-gray-900">{totalStudents}</p>
+              </div>
+              <Users className="w-12 h-12 text-blue-600 opacity-20" />
+            </div>
+          </div>
+
+          <div className="card bg-gradient-to-br from-purple-50 to-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 mb-1">Birthdays Today</p>
+                <p className="text-3xl font-bold text-gray-900">{birthdaysToday.length}</p>
+              </div>
+              <Cake className="w-12 h-12 text-purple-600 opacity-20" />
+            </div>
+          </div>
+
+          <div className="card bg-gradient-to-br from-red-50 to-white">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600 mb-1">Recent Absences</p>
+                <p className="text-3xl font-bold text-gray-900">{recentAbsences.length}</p>
+              </div>
+              <AlertCircle className="w-12 h-12 text-red-600 opacity-20" />
+            </div>
+          </div>
+        </div>
+
+        {/* Birthdays Today Section */}
+        {birthdaysToday.length > 0 && (
+          <div className="card mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                <Cake className="w-6 h-6 text-purple-600" />
+                Birthdays Today 🎉
+              </h2>
+            </div>
+            <div className="space-y-2">
+              {birthdaysToday.map(student => (
+                <div key={student.id} className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
+                  <div>
+                    <p className="font-medium text-gray-900">{student.name}</p>
+                    <p className="text-sm text-gray-600">Grade {student.grade}</p>
+                  </div>
+                  <Cake className="w-5 h-5 text-purple-600" />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Recent Absences Section */}
+        {recentAbsences.length > 0 && (
+          <div className="card mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                <AlertCircle className="w-6 h-6 text-red-600" />
+                Recent Absences
+              </h2>
+              <button
+                onClick={() => router.push('/dashboard/alerts')}
+                className="text-sm text-primary-600 hover:text-primary-700 flex items-center gap-1"
+              >
+                View All
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="space-y-2">
+              {recentAbsences.map(student => (
+                <div key={student.id} className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
+                  <div>
+                    <p className="font-medium text-gray-900">{student.name}</p>
+                    <p className="text-sm text-gray-600">Grade {student.grade}</p>
+                  </div>
+                  <span className="px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                    {student.weeks_absent} weeks absent
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Quick Action Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {/* Quick Action Cards */}
           <button
             onClick={() => router.push('/dashboard/attendance')}
             className="card hover:shadow-md transition-shadow text-left"
@@ -124,7 +293,7 @@ export default function DashboardPage() {
           </button>
         </div>
 
-        {/* Recent Activity */}
+        {/* Getting Started */}
         <div className="card">
           <h2 className="text-xl font-bold text-gray-900 mb-4">Getting Started</h2>
           <div className="space-y-4">
