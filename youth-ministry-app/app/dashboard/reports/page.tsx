@@ -98,7 +98,9 @@ export default function ReportsPage() {
     ).join('\n');
 
     const serviceLabel = serviceType === 'friday' ? 'Friday Bible Study' : 'Sunday School';
-    const dateFormatted = new Date(selectedDate).toLocaleDateString('en-US', {
+    
+    // Fix: Add T00:00:00 to ensure correct date parsing
+    const dateFormatted = new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
