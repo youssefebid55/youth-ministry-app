@@ -134,13 +134,13 @@ export default function StudentsPage() {
                 {student.phone && (
                   <div className="flex items-center gap-2">
                     <Phone className="w-4 h-4" />
-                    <a href={`tel:${student.phone}`} className="text-primary-600">{student.phone}</a>
+                    <a href={`sms:${student.phone}`} className="text-primary-600">{student.phone}</a>
                   </div>
                 )}
                 {student.parent_phone && (
                   <div className="flex items-center gap-2">
                     <Phone className="w-4 h-4" />
-                    <span>Parent: {student.parent_phone}</span>
+                    <a href={`sms:${student.parent_phone}`} className="text-primary-600">Parent: {student.parent_phone}</a>
                   </div>
                 )}
                 {student.parent_email && (

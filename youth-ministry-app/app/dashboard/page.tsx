@@ -297,20 +297,26 @@ export default function DashboardPage() {
         <div className="card">
           <h2 className="text-xl font-bold text-gray-900 mb-4">Getting Started</h2>
           <div className="space-y-4">
-            <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+            <button
+              onClick={() => router.push('/dashboard/students/add')}
+              className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors w-full text-left"
+            >
               <UserPlus className="w-5 h-5 text-primary-600 mt-0.5" />
               <div>
                 <h3 className="font-medium text-gray-900">Add Students</h3>
                 <p className="text-sm text-gray-600">Start by adding your students to the roster</p>
               </div>
-            </div>
-            <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+            </button>
+            <button
+              onClick={() => router.push('/dashboard/attendance')}
+              className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors w-full text-left"
+            >
               <Calendar className="w-5 h-5 text-primary-600 mt-0.5" />
               <div>
                 <h3 className="font-medium text-gray-900">Take Attendance</h3>
                 <p className="text-sm text-gray-600">Mark attendance for Friday or Sunday services</p>
               </div>
-            </div>
+            </button>
             <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
               <Settings className="w-5 h-5 text-primary-600 mt-0.5" />
               <div>

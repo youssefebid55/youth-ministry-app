@@ -14,6 +14,7 @@ export default function AddStudentPage() {
     address: '',
     parent_phone: '',
     parent_email: '',
+    date_of_birth: '',
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -32,6 +33,7 @@ export default function AddStudentPage() {
         address: formData.address || null,
         parent_phone: formData.parent_phone,
         parent_email: formData.parent_email || null,
+        date_of_birth: formData.date_of_birth || null,
         is_active: true,
       }]);
 
@@ -106,6 +108,18 @@ export default function AddStudentPage() {
                       <option value="12">12th Grade</option>
                     </select>
                   </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Birthday
+                  </label>
+                  <input
+                    type="date"
+                    value={formData.date_of_birth}
+                    onChange={(e) => setFormData({ ...formData, date_of_birth: e.target.value })}
+                    className="input-field w-full"
+                  />
                 </div>
 
                 <div>
