@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { Search, UserPlus, Phone, Mail, ArrowLeft, ArrowUpDown } from 'lucide-react';
+import { Search, UserPlus, Phone, Mail, ArrowLeft } from 'lucide-react';
 
 interface Student {
   id: string;
@@ -21,17 +21,21 @@ export default function StudentsPage() {
   const [sortBy, setSortBy] = useState<'name' | 'grade'>('name');
   const [loading, setLoading] = useState(true);
 
+  // TEMPORARILY DISABLED FOR UI DEVELOPMENT
+  // useEffect(() => {
+  //   checkAuth();
+  // }, []);
+
   useEffect(() => {
-    checkAuth();
     fetchStudents();
   }, []);
 
-  const checkAuth = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      router.push('/login');
-    }
-  };
+  // const checkAuth = async () => {
+  //   const { data: { session } } = await supabase.auth.getSession();
+  //   if (!session) {
+  //     router.push('/login');
+  //   }
+  // };
 
   const fetchStudents = async () => {
     const { data, error } = await supabase
@@ -100,16 +104,21 @@ export default function StudentsPage() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="input-field pl-10 w-full"
+                style={{ 
+                  color: '#111827',
+                  WebkitTextFillColor: '#111827'
+                }}
               />
             </div>
 
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value as 'name' | 'grade')}
-              className="input-field"
+              className="input-field w-auto"
+              style={{ minWidth: '150px' }}
             >
-              <option value="name">Sort by Name</option>
-              <option value="grade">Sort by Grade</option>
+              <option value="name">Name</option>
+              <option value="grade">Grade</option>
             </select>
           </div>
         </div>
