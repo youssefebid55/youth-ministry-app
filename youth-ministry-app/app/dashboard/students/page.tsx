@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { Search, UserPlus, Phone, Mail, ArrowLeft } from 'lucide-react';
+import { Search, UserPlus, Phone, Mail, ArrowLeft, Calendar } from 'lucide-react';
 
 interface Student {
   id: string;
@@ -12,6 +12,7 @@ interface Student {
   parent_phone: string;
   parent_email: string;
   grade: number;
+  last_seen?: string | null;
 }
 
 export default function StudentsPage() {
@@ -38,17 +39,39 @@ export default function StudentsPage() {
   // };
 
   const fetchStudents = async () => {
-    const { data, error } = await supabase
+    const { data: studentsData, error: studentsError } = await supabase
       .from('students')
       .select('*')
       .eq('is_active', true)
       .order('name');
 
-    if (error) {
-      console.error('Error fetching students:', error);
-    } else {
-      setStudents(data || []);
+    if (studentsError) {
+      console.error('Error fetching students:', studentsError);
+      setLoading(false);
+      return;
     }
+
+    // Get all attendance records
+    const { data: attendanceData, error: attendanceError } = await supabase
+      .from('attendance_records')
+      .select('student_id, attendance_date, was_present')
+      .eq('was_present', true)
+      .order('attendance_date', { ascending: false });
+
+    if (attendanceError) {
+      console.error('Error fetching attendance:', attendanceError);
+    }
+
+    // Map last seen date to each student
+    const studentsWithLastSeen = studentsData.map(student => {
+      const lastAttendance = attendanceData?.find(a => a.student_id === student.id);
+      return {
+        ...student,
+        last_seen: lastAttendance?.attendance_date || null
+      };
+    });
+
+    setStudents(studentsWithLastSeen);
     setLoading(false);
   };
 
@@ -61,6 +84,21 @@ export default function StudentsPage() {
         return a.grade - b.grade;
       }
     });
+
+  const formatDate = (dateString: string | null | undefined) => {
+    if (!dateString) return 'Never';
+    const date = new Date(dateString);
+    const today = new Date();
+    const diffTime = today.getTime() - date.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays} days ago`;
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+    
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
 
   if (loading) {
     return (
@@ -128,8 +166,27 @@ export default function StudentsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredAndSortedStudents.map((student) => (
             <div key={student.id} className="card hover:shadow-lg transition-shadow">
-              <h3 className="font-semibold text-lg mb-1">{student.name}</h3>
-              <p className="text-sm text-gray-600 mb-3">Grade {student.grade}</p>
+              <div className="flex items-start justify-between mb-2">
+                <div>
+                  <h3 className="font-semibold text-lg">{student.name}</h3>
+                  <p className="text-sm text-gray-600">Grade {student.grade}</p>
+                </div>
+                <span className={`text-xs px-2 py-1 rounded-full ${
+                  student.last_seen 
+                    ? 'bg-green-100 text-green-800' 
+                    : 'bg-gray-100 text-gray-800'
+                }`}>
+                  {student.last_seen ? '✓' : '—'}
+                </span>
+              </div>
+
+              <div className="mb-3 pb-3 border-b border-gray-200">
+                <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <Calendar className="w-4 h-4" />
+                  <span>Last seen: <strong>{formatDate(student.last_seen)}</strong></span>
+                </div>
+              </div>
+
               <div className="space-y-2 text-sm">
                 {student.phone && (
                   <div className="flex items-center gap-2">
