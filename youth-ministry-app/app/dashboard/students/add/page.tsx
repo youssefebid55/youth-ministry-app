@@ -12,9 +12,9 @@ export default function AddStudentPage() {
     phone: '',
     grade: '9',
     address: '',
-    parent_phone: '',
-    parent_email: '',
     date_of_birth: '',
+    parent_name: '',
+    parent_phone: '',
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -31,9 +31,9 @@ export default function AddStudentPage() {
         phone: formData.phone || null,
         grade: parseInt(formData.grade),
         address: formData.address || null,
-        parent_phone: formData.parent_phone,
-        parent_email: formData.parent_email || null,
         date_of_birth: formData.date_of_birth || null,
+        parent_name: formData.parent_name || null,
+        parent_phone: formData.parent_phone,
         is_active: true,
       }]);
 
@@ -144,6 +144,20 @@ export default function AddStudentPage() {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Parent Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.parent_name}
+                    onChange={(e) => setFormData({ ...formData, parent_name: e.target.value })}
+                    className="input-field w-full"
+                    placeholder="Parent's full name"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Parent Phone Number *
                   </label>
                   <input
@@ -153,19 +167,6 @@ export default function AddStudentPage() {
                     onChange={(e) => setFormData({ ...formData, parent_phone: e.target.value })}
                     className="input-field w-full"
                     placeholder="+1234567890"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Parent Email Address
-                  </label>
-                  <input
-                    type="email"
-                    value={formData.parent_email}
-                    onChange={(e) => setFormData({ ...formData, parent_email: e.target.value })}
-                    className="input-field w-full"
-                    placeholder="parent@email.com"
                   />
                 </div>
               </div>
