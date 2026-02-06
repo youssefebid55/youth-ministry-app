@@ -10,7 +10,6 @@ interface Student {
   name: string;
   phone: string;
   parent_phone: string;
-  parent_email: string;
   grade: number;
   last_seen?: string | null;
 }
@@ -165,7 +164,11 @@ export default function StudentsPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredAndSortedStudents.map((student) => (
-            <div key={student.id} className="card hover:shadow-lg transition-shadow">
+            <div 
+              key={student.id} 
+              onClick={() => router.push(`/dashboard/students/edit/${student.id}`)}
+              className="card hover:shadow-lg transition-shadow cursor-pointer"
+            >
               <div className="flex items-start justify-between mb-2">
                 <div>
                   <h3 className="font-semibold text-lg">{student.name}</h3>
@@ -191,19 +194,13 @@ export default function StudentsPage() {
                 {student.phone && (
                   <div className="flex items-center gap-2">
                     <Phone className="w-4 h-4" />
-                    <a href={`sms:${student.phone}`} className="text-primary-600">{student.phone}</a>
+                    <a href={`sms:${student.phone}`} className="text-primary-600" onClick={(e) => e.stopPropagation()}>{student.phone}</a>
                   </div>
                 )}
                 {student.parent_phone && (
                   <div className="flex items-center gap-2">
                     <Phone className="w-4 h-4" />
-                    <a href={`sms:${student.parent_phone}`} className="text-primary-600">Parent: {student.parent_phone}</a>
-                  </div>
-                )}
-                {student.parent_email && (
-                  <div className="flex items-center gap-2">
-                    <Mail className="w-4 h-4" />
-                    <span className="text-xs">{student.parent_email}</span>
+                    <a href={`sms:${student.parent_phone}`} className="text-primary-600" onClick={(e) => e.stopPropagation()}>Parent: {student.parent_phone}</a>
                   </div>
                 )}
               </div>
