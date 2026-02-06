@@ -83,7 +83,8 @@ export default function DashboardPage() {
 
       const birthdayStudents = students.filter(student => {
         if (!student.date_of_birth) return false
-        const dob = new Date(student.date_of_birth)
+        // Fix: Add T00:00:00 to parse in local timezone
+        const dob = new Date(student.date_of_birth + 'T00:00:00')
         return dob.getMonth() + 1 === todayMonth && dob.getDate() === todayDay
       })
 
@@ -353,13 +354,16 @@ export default function DashboardPage() {
                 <p className="text-sm text-gray-600">Mark attendance for Friday or Sunday services</p>
               </div>
             </button>
-            <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+            <button
+              onClick={() => router.push('/dashboard/settings')}
+              className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors w-full text-left"
+            >
               <Settings className="w-5 h-5 text-primary-600 mt-0.5" />
               <div>
                 <h3 className="font-medium text-gray-900">Configure Alerts</h3>
                 <p className="text-sm text-gray-600">Set up automatic notifications for absent students</p>
               </div>
-            </div>
+            </button>
           </div>
         </div>
       </main>
