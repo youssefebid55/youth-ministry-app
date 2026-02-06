@@ -302,6 +302,15 @@ export default function DashboardPage() {
           </button>
 
           <button
+            onClick={() => router.push('/dashboard/servants')}
+            className="card hover:shadow-md transition-shadow text-left"
+          >
+            <Users className="w-10 h-10 text-purple-600 mb-3" />
+            <h3 className="font-semibold text-gray-900 mb-1">Servants</h3>
+            <p className="text-sm text-gray-600">Manage ministry servants</p>
+          </button>
+
+          <button
             onClick={() => router.push('/dashboard/alerts')}
             className="card hover:shadow-md transition-shadow text-left"
           >
