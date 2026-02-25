@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { AlertCircle, Phone, Mail, ArrowLeft } from 'lucide-react';
+import { AlertCircle, Phone, ArrowLeft, Settings } from 'lucide-react';
 
 interface Alert {
   id: string;
@@ -11,38 +11,54 @@ interface Alert {
   grade: number;
   phone: string;
   parent_phone: string;
-  parent_email: string;
+  parent_name: string;
   weeks_absent: number;
   last_seen: string | null;
+  servant_name: string | null;
 }
 
 export default function AlertsPage() {
   const router = useRouter();
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [loading, setLoading] = useState(true);
-
-  // TEMPORARILY DISABLED FOR UI DEVELOPMENT
-  // useEffect(() => {
-  //   checkAuth();
-  // }, []);
+  const [seasonStartDate, setSeasonStartDate] = useState<string | null>(null);
+  const [weeksThreshold, setWeeksThreshold] = useState(2);
 
   useEffect(() => {
     fetchAlerts();
   }, []);
 
-  // const checkAuth = async () => {
-  //   const { data: { session } } = await supabase.auth.getSession();
-  //   if (!session) {
-  //     router.push('/login');
-  //   }
-  // };
-
   const fetchAlerts = async () => {
     setLoading(true);
 
+    // Get settings
+    const { data: settingsData } = await supabase
+      .from('settings')
+      .select('*');
+
+    let startDate: string | null = null;
+    let threshold = 2;
+
+    settingsData?.forEach(setting => {
+      if (setting.key === 'season_start_date') {
+        startDate = setting.value;
+        setSeasonStartDate(setting.value);
+      }
+      if (setting.key === 'absence_alert_weeks') {
+        threshold = parseInt(setting.value) || 2;
+        setWeeksThreshold(threshold);
+      }
+    });
+
+    if (!startDate) {
+      setLoading(false);
+      return;
+    }
+
+    // Get students with servant info
     const { data: students, error: studentsError } = await supabase
       .from('students')
-      .select('*')
+      .select('*, servants(name)')
       .eq('is_active', true);
 
     if (studentsError) {
@@ -54,17 +70,18 @@ export default function AlertsPage() {
     // Get cancelled class dates
     const { data: cancelledDates } = await supabase
       .from('class_cancellations')
-      .select('cancellation_date')
+      .select('cancellation_date');
 
     const cancelledDateSet = new Set(
       cancelledDates?.map(c => c.cancellation_date) || []
-    )
+    );
 
-    // Get all attendance records where students were PRESENT
+    // Get attendance records after season start
     const { data: attendance, error: attendanceError } = await supabase
       .from('attendance_records')
       .select('*')
       .eq('was_present', true)
+      .gte('attendance_date', startDate)
       .order('attendance_date', { ascending: false });
 
     if (attendanceError) {
@@ -73,49 +90,44 @@ export default function AlertsPage() {
       return;
     }
 
-    // Filter out attendance from cancelled dates
+    // Filter out cancelled dates
     const validAttendance = attendance?.filter(
       a => !cancelledDateSet.has(a.attendance_date)
-    ) || []
+    ) || [];
 
     const alertStudents: Alert[] = [];
     const today = new Date();
+    const seasonStart = new Date(startDate + 'T00:00:00');
 
     students.forEach(student => {
-      // Find the last time this student was present (excluding cancelled dates)
       const lastPresent = validAttendance.find(a => a.student_id === student.id);
       
+      let weeksAbsent = 0;
+      let lastSeenDate: string | null = null;
+
       if (!lastPresent) {
-        // Never been present - count as 6+ weeks absent
+        // Never been present since season start
+        const diffTime = today.getTime() - seasonStart.getTime();
+        weeksAbsent = Math.floor(diffTime / (1000 * 60 * 60 * 24 * 7));
+      } else {
+        lastSeenDate = lastPresent.attendance_date;
+        const lastPresentDate = new Date(lastPresent.attendance_date + 'T00:00:00');
+        const diffTime = today.getTime() - lastPresentDate.getTime();
+        weeksAbsent = Math.floor(diffTime / (1000 * 60 * 60 * 24 * 7));
+      }
+
+      if (weeksAbsent >= threshold) {
         alertStudents.push({
           id: student.id,
           name: student.name,
           grade: student.grade,
           phone: student.phone || '',
           parent_phone: student.parent_phone || '',
-          parent_email: student.parent_email || '',
-          weeks_absent: 6,
-          last_seen: null,
+          parent_name: student.parent_name || '',
+          weeks_absent: weeksAbsent,
+          last_seen: lastSeenDate,
+          servant_name: student.servants?.name || null,
         });
-      } else {
-        // Calculate weeks since last present
-        const lastPresentDate = new Date(lastPresent.attendance_date);
-        const diffTime = today.getTime() - lastPresentDate.getTime();
-        const diffWeeks = Math.floor(diffTime / (1000 * 60 * 60 * 24 * 7));
-
-        // Only include if absent for 2+ weeks
-        if (diffWeeks >= 2) {
-          alertStudents.push({
-            id: student.id,
-            name: student.name,
-            grade: student.grade,
-            phone: student.phone || '',
-            parent_phone: student.parent_phone || '',
-            parent_email: student.parent_email || '',
-            weeks_absent: Math.min(diffWeeks, 6), // Cap at 6 weeks
-            last_seen: lastPresent.attendance_date,
-          });
-        }
       }
     });
 
@@ -147,18 +159,38 @@ export default function AlertsPage() {
           Back to Dashboard
         </button>
 
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Absence Alerts</h1>
-          <p className="text-gray-600">
-            Students who haven't been seen in 2+ weeks (excluding cancelled classes)
-          </p>
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Absence Alerts</h1>
+            <p className="text-gray-600">
+              Students absent {weeksThreshold}+ weeks since {seasonStartDate ? new Date(seasonStartDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}
+            </p>
+          </div>
+          <button
+            onClick={() => router.push('/dashboard/settings')}
+            className="btn-secondary flex items-center gap-2"
+          >
+            <Settings className="w-4 h-4" />
+            Settings
+          </button>
         </div>
 
-        {alerts.length === 0 ? (
+        {!seasonStartDate ? (
+          <div className="card text-center py-12">
+            <Settings className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-600 mb-4">No season start date configured</p>
+            <button
+              onClick={() => router.push('/dashboard/settings')}
+              className="btn-primary"
+            >
+              Configure Settings
+            </button>
+          </div>
+        ) : alerts.length === 0 ? (
           <div className="card text-center py-12">
             <AlertCircle className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-600">No alerts at this time</p>
-            <p className="text-sm text-gray-500 mt-2">All students have attended recently!</p>
+            <p className="text-sm text-gray-500 mt-2">All students have attended within the past {weeksThreshold} weeks!</p>
           </div>
         ) : (
           <div className="space-y-4">
@@ -180,8 +212,13 @@ export default function AlertsPage() {
                         <strong>Grade:</strong> {alert.grade}
                       </p>
                       <p className="text-gray-600">
-                        <strong>Last seen:</strong> {alert.last_seen ? new Date(alert.last_seen).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Never'}
+                        <strong>Last seen:</strong> {alert.last_seen ? new Date(alert.last_seen + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Never (this season)'}
                       </p>
+                      {alert.servant_name && (
+                        <p className="text-gray-600">
+                          <strong>Servant:</strong> {alert.servant_name}
+                        </p>
+                      )}
                       {alert.phone && (
                         <p className="text-gray-600 flex items-center gap-2">
                           <Phone className="w-4 h-4" />
@@ -193,16 +230,10 @@ export default function AlertsPage() {
                       {alert.parent_phone && (
                         <p className="text-gray-600 flex items-center gap-2">
                           <Phone className="w-4 h-4" />
-                          <strong>Parent:</strong>
+                          <strong>Parent{alert.parent_name ? ` (${alert.parent_name})` : ''}:</strong>
                           <a href={`sms:${alert.parent_phone}`} className="text-primary-600 hover:text-primary-700">
                             {alert.parent_phone}
                           </a>
-                        </p>
-                      )}
-                      {alert.parent_email && (
-                        <p className="text-gray-600 flex items-center gap-2">
-                          <Mail className="w-4 h-4" />
-                          {alert.parent_email}
                         </p>
                       )}
                     </div>

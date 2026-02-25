@@ -39,34 +39,28 @@ export default function DashboardPage() {
   const [birthdaysToday, setBirthdaysToday] = useState<Student[]>([])
   const [recentAbsences, setRecentAbsences] = useState<AbsentStudent[]>([])
 
-  // TEMPORARILY DISABLED FOR UI DEVELOPMENT
-  // useEffect(() => {
-  //   checkUser()
-  // }, [])
-
   useEffect(() => {
     fetchDashboardData()
   }, [])
 
-  // const checkUser = async () => {
-  //   try {
-  //     const { data: { user } } = await supabase.auth.getUser()
-      
-  //     if (!user) {
-  //       router.push('/login')
-  //       return
-  //     }
-      
-  //     setUser(user)
-  //   } catch (error) {
-  //     console.error('Error:', error)
-  //     router.push('/login')
-  //   } finally {
-  //     setLoading(false)
-  //   }
-  // }
-
   const fetchDashboardData = async () => {
+    // Get settings
+    const { data: settingsData } = await supabase
+      .from('settings')
+      .select('*')
+
+    let seasonStartDate: string | null = null
+    let weeksThreshold = 2
+
+    settingsData?.forEach(setting => {
+      if (setting.key === 'season_start_date') {
+        seasonStartDate = setting.value
+      }
+      if (setting.key === 'absence_alert_weeks') {
+        weeksThreshold = parseInt(setting.value) || 2
+      }
+    })
+
     // Get total students
     const { data: students, error: studentsError } = await supabase
       .from('students')
@@ -78,12 +72,11 @@ export default function DashboardPage() {
 
       // Get birthdays today
       const today = new Date()
-      const todayMonth = today.getMonth() + 1 // JS months are 0-indexed
+      const todayMonth = today.getMonth() + 1
       const todayDay = today.getDate()
 
       const birthdayStudents = students.filter(student => {
         if (!student.date_of_birth) return false
-        // Fix: Add T00:00:00 to parse in local timezone
         const dob = new Date(student.date_of_birth + 'T00:00:00')
         return dob.getMonth() + 1 === todayMonth && dob.getDate() === todayDay
       })
@@ -99,46 +92,57 @@ export default function DashboardPage() {
         cancelledDates?.map(c => c.cancellation_date) || []
       )
 
-      // Get all attendance records where students were PRESENT (excluding cancelled dates)
-      const { data: attendance } = await supabase
+      // Build attendance query - only get records after season start date
+      let attendanceQuery = supabase
         .from('attendance_records')
         .select('*')
         .eq('was_present', true)
         .order('attendance_date', { ascending: false })
+
+      if (seasonStartDate) {
+        attendanceQuery = attendanceQuery.gte('attendance_date', seasonStartDate)
+      }
+
+      const { data: attendance } = await attendanceQuery
 
       // Filter out attendance from cancelled dates
       const validAttendance = attendance?.filter(
         a => !cancelledDateSet.has(a.attendance_date)
       ) || []
 
-      if (validAttendance) {
+      if (seasonStartDate) {
         const absentStudents: AbsentStudent[] = []
 
         students.forEach(student => {
-          // Find the last time this student was present (excluding cancelled dates)
+          // Find the last time this student was present (after season start)
           const lastPresent = validAttendance.find(a => a.student_id === student.id)
           
           if (!lastPresent) {
-            // Never been present - count as 6+ weeks absent
-            absentStudents.push({
-              id: student.id,
-              name: student.name,
-              grade: student.grade,
-              weeks_absent: 6,
-            })
-          } else {
-            // Calculate weeks since last present
-            const lastPresentDate = new Date(lastPresent.attendance_date)
-            const diffTime = today.getTime() - lastPresentDate.getTime()
+            // Never been present since season start
+            const seasonStart = new Date(seasonStartDate + 'T00:00:00')
+            const diffTime = today.getTime() - seasonStart.getTime()
             const diffWeeks = Math.floor(diffTime / (1000 * 60 * 60 * 24 * 7))
 
-            // Only include if absent for 2+ weeks
-            if (diffWeeks >= 2) {
+            if (diffWeeks >= weeksThreshold) {
               absentStudents.push({
                 id: student.id,
                 name: student.name,
                 grade: student.grade,
-                weeks_absent: Math.min(diffWeeks, 6), // Cap at 6 weeks
+                weeks_absent: diffWeeks,
+              })
+            }
+          } else {
+            // Calculate weeks since last present
+            const lastPresentDate = new Date(lastPresent.attendance_date + 'T00:00:00')
+            const diffTime = today.getTime() - lastPresentDate.getTime()
+            const diffWeeks = Math.floor(diffTime / (1000 * 60 * 60 * 24 * 7))
+
+            if (diffWeeks >= weeksThreshold) {
+              absentStudents.push({
+                id: student.id,
+                name: student.name,
+                grade: student.grade,
+                weeks_absent: diffWeeks,
               })
             }
           }
@@ -147,14 +151,12 @@ export default function DashboardPage() {
         // Sort by most absent and take top 5
         absentStudents.sort((a, b) => b.weeks_absent - a.weeks_absent)
         setRecentAbsences(absentStudents.slice(0, 5))
+      } else {
+        // No season start date set - show nothing
+        setRecentAbsences([])
       }
     }
   }
-
-  // const handleLogout = async () => {
-  //   await supabase.auth.signOut()
-  //   router.push('/')
-  // }
 
   if (loading) {
     return (
@@ -180,14 +182,6 @@ export default function DashboardPage() {
                 <p className="text-sm text-gray-600">Development Mode</p>
               </div>
             </div>
-            {/* TEMPORARILY DISABLED FOR UI DEVELOPMENT */}
-            {/* <button
-              onClick={handleLogout}
-              className="flex items-center gap-2 text-gray-600 hover:text-red-600 transition-colors"
-            >
-              <LogOut className="w-5 h-5" />
-              <span className="hidden sm:inline">Sign Out</span>
-            </button> */}
           </div>
         </div>
       </header>
@@ -219,7 +213,7 @@ export default function DashboardPage() {
           <div className="card bg-gradient-to-br from-red-50 to-white">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 mb-1">Recent Absences</p>
+                <p className="text-sm text-gray-600 mb-1">Need Follow-up</p>
                 <p className="text-3xl font-bold text-gray-900">{recentAbsences.length}</p>
               </div>
               <AlertCircle className="w-12 h-12 text-red-600 opacity-20" />
@@ -256,7 +250,7 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
                 <AlertCircle className="w-6 h-6 text-red-600" />
-                Recent Absences
+                Need Follow-up
               </h2>
               <button
                 onClick={() => router.push('/dashboard/alerts')}
