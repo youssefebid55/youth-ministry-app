@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { Search, UserPlus, Phone, Mail, ArrowLeft, Calendar } from 'lucide-react';
+import { Search, UserPlus, Phone, ArrowLeft, Calendar, User } from 'lucide-react';
 
 interface Student {
   id: string;
@@ -12,6 +12,7 @@ interface Student {
   parent_phone: string;
   grade: number;
   last_seen?: string | null;
+  servant_name?: string | null;
 }
 
 export default function StudentsPage() {
@@ -21,26 +22,15 @@ export default function StudentsPage() {
   const [sortBy, setSortBy] = useState<'name' | 'grade'>('name');
   const [loading, setLoading] = useState(true);
 
-  // TEMPORARILY DISABLED FOR UI DEVELOPMENT
-  // useEffect(() => {
-  //   checkAuth();
-  // }, []);
-
   useEffect(() => {
     fetchStudents();
   }, []);
 
-  // const checkAuth = async () => {
-  //   const { data: { session } } = await supabase.auth.getSession();
-  //   if (!session) {
-  //     router.push('/login');
-  //   }
-  // };
-
   const fetchStudents = async () => {
+    // Fetch students with servant info using join
     const { data: studentsData, error: studentsError } = await supabase
       .from('students')
-      .select('*')
+      .select('*, servants(name)')
       .eq('is_active', true)
       .order('name');
 
@@ -61,16 +51,17 @@ export default function StudentsPage() {
       console.error('Error fetching attendance:', attendanceError);
     }
 
-    // Map last seen date to each student
-    const studentsWithLastSeen = studentsData.map(student => {
+    // Map last seen date and servant name to each student
+    const studentsWithDetails = studentsData.map(student => {
       const lastAttendance = attendanceData?.find(a => a.student_id === student.id);
       return {
         ...student,
-        last_seen: lastAttendance?.attendance_date || null
+        last_seen: lastAttendance?.attendance_date || null,
+        servant_name: student.servants?.name || null
       };
     });
 
-    setStudents(studentsWithLastSeen);
+    setStudents(studentsWithDetails);
     setLoading(false);
   };
 
@@ -86,7 +77,7 @@ export default function StudentsPage() {
 
   const formatDate = (dateString: string | null | undefined) => {
     if (!dateString) return 'Never';
-    const date = new Date(dateString);
+    const date = new Date(dateString + 'T00:00:00');
     const today = new Date();
     const diffTime = today.getTime() - date.getTime();
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
@@ -183,11 +174,17 @@ export default function StudentsPage() {
                 </span>
               </div>
 
-              <div className="mb-3 pb-3 border-b border-gray-200">
+              <div className="mb-3 pb-3 border-b border-gray-200 space-y-1">
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <Calendar className="w-4 h-4" />
                   <span>Last seen: <strong>{formatDate(student.last_seen)}</strong></span>
                 </div>
+                {student.servant_name && (
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <User className="w-4 h-4" />
+                    <span>Servant: <strong>{student.servant_name}</strong></span>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2 text-sm">
