@@ -25,6 +25,7 @@ export default function ServantsPage() {
   }, []);
 
   const fetchServants = async () => {
+    // First get servants
     const { data: servantsData, error: servantsError } = await supabase
       .from('servants')
       .select('*')
@@ -36,27 +37,35 @@ export default function ServantsPage() {
       return;
     }
 
-    // Get student counts for each servant
-    const { data: assignments, error: assignmentsError } = await supabase
-      .from('servant_assignments')
-      .select('servant_id');
+    // Get student counts using servant_id column in students table
+    const { data: students, error: studentsError } = await supabase
+      .from('students')
+      .select('servant_id')
+      .eq('is_active', true)
+      .not('servant_id', 'is', null);
 
-    if (!assignmentsError && assignments) {
-      const counts = assignments.reduce((acc: Record<string, number>, assignment) => {
-        acc[assignment.servant_id] = (acc[assignment.servant_id] || 0) + 1;
-        return acc;
-      }, {});
-
-      const servantsWithCounts = servantsData.map(servant => ({
-        ...servant,
-        student_count: counts[servant.id] || 0
-      }));
-
-      setServants(servantsWithCounts);
-    } else {
-      setServants(servantsData);
+    if (studentsError) {
+      console.error('Error fetching student counts:', studentsError);
+      // Still show servants, just without counts
+      setServants(servantsData || []);
+      setLoading(false);
+      return;
     }
 
+    // Count students per servant
+    const counts: Record<string, number> = {};
+    students?.forEach(student => {
+      if (student.servant_id) {
+        counts[student.servant_id] = (counts[student.servant_id] || 0) + 1;
+      }
+    });
+
+    const servantsWithCounts = servantsData.map(servant => ({
+      ...servant,
+      student_count: counts[servant.id] || 0
+    }));
+
+    setServants(servantsWithCounts);
     setLoading(false);
   };
 
@@ -143,10 +152,12 @@ export default function ServantsPage() {
               </div>
 
               <div className="space-y-2 text-sm">
-                <div className="flex items-center gap-2">
-                  <Phone className="w-4 h-4" />
-                  <a href={`sms:${servant.phone}`} className="text-primary-600">{servant.phone}</a>
-                </div>
+                {servant.phone && (
+                  <div className="flex items-center gap-2">
+                    <Phone className="w-4 h-4" />
+                    <a href={`sms:${servant.phone}`} className="text-primary-600">{servant.phone}</a>
+                  </div>
+                )}
                 {servant.email && (
                   <div className="flex items-center gap-2">
                     <Mail className="w-4 h-4" />
