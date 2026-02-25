@@ -9,16 +9,12 @@ interface Student {
   id: string;
   name: string;
   grade: number;
+  servant_id: string | null;
 }
 
 interface Servant {
   id: string;
   name: string;
-}
-
-interface Assignment {
-  student_id: string;
-  servant_id: string | null;
 }
 
 export default function AssignStudentsPage() {
@@ -34,11 +30,12 @@ export default function AssignStudentsPage() {
   }, []);
 
   const fetchData = async () => {
-    // Fetch students
+    // Fetch students with servant_id
     const { data: studentsData, error: studentsError } = await supabase
       .from('students')
-      .select('id, name, grade')
+      .select('id, name, grade, servant_id')
       .eq('is_active', true)
+      .order('grade')
       .order('name');
 
     if (studentsError) {
@@ -46,6 +43,8 @@ export default function AssignStudentsPage() {
       setLoading(false);
       return;
     }
+
+    console.log('Students data:', studentsData); // Debug log
 
     // Fetch servants
     const { data: servantsData, error: servantsError } = await supabase
@@ -59,36 +58,19 @@ export default function AssignStudentsPage() {
       return;
     }
 
-    // Fetch existing assignments
-    const { data: assignmentsData, error: assignmentsError } = await supabase
-      .from('servant_assignments')
-      .select('student_id, servant_id');
+    console.log('Servants data:', servantsData); // Debug log
 
-    if (!assignmentsError && assignmentsData) {
-      const assignmentsMap: Record<string, string | null> = {};
-      assignmentsData.forEach(assignment => {
-        assignmentsMap[assignment.student_id] = assignment.servant_id;
-      });
+    // Build assignments map from student data
+    const assignmentsMap: Record<string, string | null> = {};
+    studentsData?.forEach(student => {
+      assignmentsMap[student.id] = student.servant_id;
+    });
 
-      // Initialize all students (including those without assignments)
-      studentsData.forEach(student => {
-        if (!(student.id in assignmentsMap)) {
-          assignmentsMap[student.id] = null;
-        }
-      });
+    console.log('Assignments map:', assignmentsMap); // Debug log
 
-      setAssignments(assignmentsMap);
-    } else {
-      // Initialize empty assignments
-      const assignmentsMap: Record<string, string | null> = {};
-      studentsData.forEach(student => {
-        assignmentsMap[student.id] = null;
-      });
-      setAssignments(assignmentsMap);
-    }
-
-    setStudents(studentsData);
-    setServants(servantsData);
+    setStudents(studentsData || []);
+    setServants(servantsData || []);
+    setAssignments(assignmentsMap);
     setLoading(false);
   };
 
@@ -102,27 +84,15 @@ export default function AssignStudentsPage() {
   const handleSave = async () => {
     setSaving(true);
 
-    // Delete all existing assignments
-    await supabase
-      .from('servant_assignments')
-      .delete()
-      .neq('student_id', '00000000-0000-0000-0000-000000000000'); // Delete all
-
-    // Insert new assignments
-    const assignmentsToInsert = Object.entries(assignments)
-      .filter(([_, servantId]) => servantId !== null)
-      .map(([studentId, servantId]) => ({
-        student_id: studentId,
-        servant_id: servantId
-      }));
-
-    if (assignmentsToInsert.length > 0) {
+    // Update each student's servant_id
+    for (const [studentId, servantId] of Object.entries(assignments)) {
       const { error } = await supabase
-        .from('servant_assignments')
-        .insert(assignmentsToInsert);
+        .from('students')
+        .update({ servant_id: servantId })
+        .eq('id', studentId);
 
       if (error) {
-        console.error('Error saving assignments:', error);
+        console.error('Error saving assignment:', error);
         alert('Error saving assignments');
         setSaving(false);
         return;
