@@ -135,7 +135,11 @@ export default function ServantsPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredServants.map((servant) => (
-            <div key={servant.id} className="card hover:shadow-lg transition-shadow">
+          <div 
+  key={servant.id} 
+  onClick={() => router.push(`/dashboard/servants/${servant.id}`)}
+  className="card hover:shadow-lg transition-shadow cursor-pointer"
+>
               <div className="flex items-start justify-between mb-3">
                 <div>
                   <h3 className="font-semibold text-lg">{servant.name}</h3>
