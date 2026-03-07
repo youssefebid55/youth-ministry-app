@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { ArrowLeft, Phone, Users } from 'lucide-react';
+import { ArrowLeft, Phone, Users, CheckCircle } from 'lucide-react';
 
 interface Servant {
   id: string;
@@ -17,6 +17,7 @@ interface Student {
   phone: string;
   parent_phone: string;
   last_seen: string | null;
+  last_contacted: string | null;
 }
 
 export default function ServantDetailPage() {
@@ -69,15 +70,24 @@ export default function ServantDetailPage() {
       .eq('was_present', true)
       .order('attendance_date', { ascending: false });
 
-    const studentsWithLastSeen = studentsData.map(student => {
+    // Get last contacted for each student
+    const { data: contacts } = await supabase
+      .from('student_contacts')
+      .select('student_id, contact_date')
+      .eq('servant_id', servantId)
+      .order('contact_date', { ascending: false });
+
+    const studentsWithData = studentsData.map(student => {
       const lastAttendance = attendance?.find(a => a.student_id === student.id);
+      const lastContact = contacts?.find(c => c.student_id === student.id);
       return {
         ...student,
         last_seen: lastAttendance?.attendance_date || null,
+        last_contacted: lastContact?.contact_date || null,
       };
     });
 
-    setStudents(studentsWithLastSeen);
+    setStudents(studentsWithData);
     setLoading(false);
   };
 
@@ -94,6 +104,25 @@ export default function ServantDetailPage() {
     if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
     
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  const logContact = async (studentId: string) => {
+    const { error } = await supabase
+      .from('student_contacts')
+      .insert({
+        student_id: studentId,
+        servant_id: servantId,
+        contact_date: new Date().toISOString().split('T')[0],
+      });
+
+    if (!error) {
+      // Update local state
+      setStudents(prev => prev.map(s => 
+        s.id === studentId 
+          ? { ...s, last_contacted: new Date().toISOString().split('T')[0] }
+          : s
+      ));
+    }
   };
 
   if (loading) {
@@ -144,33 +173,34 @@ export default function ServantDetailPage() {
               {students.map((student) => (
                 <div
                   key={student.id}
-                  className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
+                  className="p-4 bg-gray-50 rounded-lg"
                 >
-                  <div>
-                    <p className="font-medium text-gray-900">{student.name}</p>
-                    <p className="text-sm text-gray-500">
-                      Last seen: <span className={student.last_seen ? '' : 'text-red-600'}>{formatLastSeen(student.last_seen)}</span>
-                    </p>
-                  </div>
-                  <div className="flex gap-3">
-                    {student.phone && (
-                      <a 
-                        href={`sms:${student.phone}`} 
-                        className="flex items-center gap-1 text-primary-600 text-sm"
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <p className="font-medium text-gray-900 text-lg">{student.name}</p>
+                      <div className="text-sm text-gray-600 mt-1 space-y-1">
+                        <p>Last seen: <span className={student.last_seen ? '' : 'text-red-600'}>{formatLastSeen(student.last_seen)}</span></p>
+                        <p>Last contacted: <span className={student.last_contacted ? 'text-green-600' : 'text-gray-400'}>{formatLastSeen(student.last_contacted)}</span></p>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      {(student.phone || student.parent_phone) && (
+                        <a 
+                          href={`sms:${student.phone || student.parent_phone}`} 
+                          className="btn-primary flex items-center gap-2 text-sm"
+                        >
+                          <Phone className="w-4 h-4" />
+                          Text
+                        </a>
+                      )}
+                      <button
+                        onClick={() => logContact(student.id)}
+                        className="btn-secondary flex items-center gap-2 text-sm"
                       >
-                        <Phone className="w-4 h-4" />
-                        {student.phone}
-                      </a>
-                    )}
-                    {student.parent_phone && !student.phone && (
-                      <a 
-                        href={`sms:${student.parent_phone}`} 
-                        className="flex items-center gap-1 text-primary-600 text-sm"
-                      >
-                        <Phone className="w-4 h-4" />
-                        {student.parent_phone}
-                      </a>
-                    )}
+                        <CheckCircle className="w-4 h-4" />
+                        Reached Out
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
