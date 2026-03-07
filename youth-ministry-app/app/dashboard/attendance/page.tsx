@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { ArrowLeft, Save, Check, X, Clock, Search, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Save, Search, AlertTriangle } from 'lucide-react';
 
 interface Student {
   id: string;
@@ -263,25 +263,27 @@ export default function AttendancePage() {
           )}
 
           {/* Search and Filter */}
-          <div className="flex gap-2 mb-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <div className="grid grid-cols-3 gap-2 mb-4">
+            <div className="col-span-2 relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
                 placeholder="Search students..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="input-field pl-9 w-full text-sm"
+                className="input-field pl-10 w-full"
                 style={{ 
                   color: '#111827',
-                  WebkitTextFillColor: '#111827'
+                  WebkitTextFillColor: '#111827',
+                  fontSize: '16px'
                 }}
               />
             </div>
             <select
               value={filterGrade}
               onChange={(e) => setFilterGrade(e.target.value)}
-              className="input-field text-sm"
+              className="input-field"
+              style={{ fontSize: '16px' }}
             >
               <option value="all">All Grades</option>
               <option value="9">Grade 9</option>
@@ -292,7 +294,7 @@ export default function AttendancePage() {
           </div>
 
           {/* Stats & Quick Actions */}
-          <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+          <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
             <div className="flex gap-3">
               <span className="text-green-600">✓ {presentCount}</span>
               <span className="text-yellow-600">⏱ {lateCount}</span>
@@ -325,46 +327,46 @@ export default function AttendancePage() {
               key={student.id}
               className="bg-white p-3 rounded-lg border border-gray-200"
             >
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center justify-between mb-3">
                 <div>
-                  <p className="font-medium text-gray-900 text-sm">{student.name}</p>
-                  <p className="text-xs text-gray-600">Grade {student.grade}</p>
+                  <p className="font-medium text-gray-900">{student.name}</p>
+                  <p className="text-sm text-gray-600">Grade {student.grade}</p>
                 </div>
               </div>
               
-              <div className="flex gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 <button
                   onClick={() => setStatus(student.id, 'present')}
                   disabled={isCancelled}
-                  className={`flex-1 py-2 px-3 rounded text-xs font-medium transition-colors ${
+                  className={`py-2.5 px-3 rounded font-medium transition-colors ${
                     attendance[student.id] === 'present'
                       ? 'bg-green-600 text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   } ${isCancelled ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
-                  <Check className="w-4 h-4 mx-auto" />
+                  Present
                 </button>
                 <button
                   onClick={() => setStatus(student.id, 'late')}
                   disabled={isCancelled}
-                  className={`flex-1 py-2 px-3 rounded text-xs font-medium transition-colors ${
+                  className={`py-2.5 px-3 rounded font-medium transition-colors ${
                     attendance[student.id] === 'late'
                       ? 'bg-yellow-600 text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   } ${isCancelled ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
-                  <Clock className="w-4 h-4 mx-auto" />
+                  Late
                 </button>
                 <button
                   onClick={() => setStatus(student.id, 'absent')}
                   disabled={isCancelled}
-                  className={`flex-1 py-2 px-3 rounded text-xs font-medium transition-colors ${
+                  className={`py-2.5 px-3 rounded font-medium transition-colors ${
                     attendance[student.id] === 'absent'
                       ? 'bg-red-600 text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   } ${isCancelled ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
-                  <X className="w-4 h-4 mx-auto" />
+                  Absent
                 </button>
               </div>
             </div>
@@ -382,7 +384,7 @@ export default function AttendancePage() {
             <button
               onClick={handleSave}
               disabled={saving}
-              className="btn-primary w-full flex items-center justify-center gap-2 py-4 text-base shadow-lg"
+              className="btn-primary w-full flex items-center justify-center gap-2 py-4 text-lg shadow-lg"
             >
               <Save className="w-5 h-5" />
               {saving ? 'Saving...' : 'Save Attendance'}
