@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { ArrowLeft, Save, Check, X, Clock, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Save, Check, X, Clock, Search, AlertTriangle } from 'lucide-react';
 
 interface Student {
   id: string;
@@ -13,20 +13,17 @@ interface Student {
 
 type AttendanceStatus = 'present' | 'absent' | 'late';
 
-interface AttendanceRecord {
-  student_id: string;
-  status: AttendanceStatus;
-}
-
 export default function AttendancePage() {
   const router = useRouter();
   const [students, setStudents] = useState<Student[]>([]);
   const [attendance, setAttendance] = useState<Record<string, AttendanceStatus>>({});
   const [selectedDate, setSelectedDate] = useState('');
-  const [dateOptions, setDateOptions] = useState<{date: string, label: string, day: string}[]>([]);
+  const [dateOptions, setDateOptions] = useState<{date: string, label: string}[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterGrade, setFilterGrade] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [serviceType, setServiceType] = useState<'friday' | 'saturday'>('friday');
+  const [serviceType, setServiceType] = useState<'friday' | 'sunday'>('friday');
   const [isCancelled, setIsCancelled] = useState(false);
 
   useEffect(() => {
@@ -41,26 +38,26 @@ export default function AttendancePage() {
       // Set service type based on day
       const date = new Date(selectedDate + 'T00:00:00');
       const day = date.getDay();
-      setServiceType(day === 5 ? 'friday' : 'saturday');
+      setServiceType(day === 5 ? 'friday' : 'sunday');
     }
   }, [selectedDate]);
 
   const generateDateOptions = () => {
-    const options: {date: string, label: string, day: string}[] = [];
+    const options: {date: string, label: string}[] = [];
     const today = new Date();
     
-    // Generate last 8 Fridays and Saturdays
-    for (let i = 0; i < 30; i++) {
+    // Generate last 8 Fridays and Sundays
+    for (let i = 0; i < 60; i++) {
       const date = new Date(today);
       date.setDate(today.getDate() - i);
       const day = date.getDay();
       
-      // 5 = Friday, 6 = Saturday
-      if (day === 5 || day === 6) {
+      // 5 = Friday, 0 = Sunday
+      if (day === 5 || day === 0) {
         const dateStr = date.toISOString().split('T')[0];
-        const dayName = day === 5 ? 'Friday' : 'Saturday';
+        const dayName = day === 5 ? 'Fri' : 'Sun';
         const label = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        options.push({ date: dateStr, label: `${dayName} ${label}`, day: dayName });
+        options.push({ date: dateStr, label: `${dayName} ${label}` });
         
         if (options.length >= 8) break;
       }
@@ -68,7 +65,7 @@ export default function AttendancePage() {
 
     setDateOptions(options);
     
-    // Default to most recent Friday or Saturday
+    // Default to most recent Friday or Sunday
     if (options.length > 0) {
       setSelectedDate(options[0].date);
     }
@@ -126,26 +123,13 @@ export default function AttendancePage() {
     setIsCancelled(!!data);
   };
 
-  const toggleStatus = (studentId: string) => {
-    setAttendance(prev => {
-      const current = prev[studentId];
-      let next: AttendanceStatus;
-      if (current === 'absent') next = 'present';
-      else if (current === 'present') next = 'late';
-      else next = 'absent';
-      return { ...prev, [studentId]: next };
-    });
+  const setStatus = (studentId: string, status: AttendanceStatus) => {
+    setAttendance(prev => ({ ...prev, [studentId]: status }));
   };
 
   const markAllPresent = () => {
     const newAttendance: Record<string, AttendanceStatus> = {};
     students.forEach(s => newAttendance[s.id] = 'present');
-    setAttendance(newAttendance);
-  };
-
-  const markAllAbsent = () => {
-    const newAttendance: Record<string, AttendanceStatus> = {};
-    students.forEach(s => newAttendance[s.id] = 'absent');
     setAttendance(newAttendance);
   };
 
@@ -211,21 +195,11 @@ export default function AttendancePage() {
     setIsCancelled(false);
   };
 
-  const getStatusIcon = (status: AttendanceStatus) => {
-    switch (status) {
-      case 'present': return <Check className="w-5 h-5 text-green-600" />;
-      case 'late': return <Clock className="w-5 h-5 text-yellow-600" />;
-      case 'absent': return <X className="w-5 h-5 text-red-600" />;
-    }
-  };
-
-  const getStatusClass = (status: AttendanceStatus) => {
-    switch (status) {
-      case 'present': return 'bg-green-100 border-green-300';
-      case 'late': return 'bg-yellow-100 border-yellow-300';
-      case 'absent': return 'bg-red-100 border-red-300';
-    }
-  };
+  const filteredStudents = students.filter(student => {
+    const matchesSearch = student.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesGrade = filterGrade === 'all' || student.grade.toString() === filterGrade;
+    return matchesSearch && matchesGrade;
+  });
 
   const presentCount = Object.values(attendance).filter(s => s === 'present').length;
   const lateCount = Object.values(attendance).filter(s => s === 'late').length;
@@ -233,7 +207,7 @@ export default function AttendancePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 p-8">
+      <div className="min-h-screen bg-gray-50 p-4">
         <div className="max-w-4xl mx-auto">
           <p>Loading...</p>
         </div>
@@ -255,13 +229,13 @@ export default function AttendancePage() {
 
           <h1 className="text-2xl font-bold text-gray-900 mb-4">Take Attendance</h1>
 
-          {/* Date Selection - Only Fridays & Saturdays */}
+          {/* Date Selection */}
           <div className="flex flex-wrap gap-2 mb-4">
             {dateOptions.map(option => (
               <button
                 key={option.date}
                 onClick={() => setSelectedDate(option.date)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                   selectedDate === option.date
                     ? 'bg-primary-600 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -274,45 +248,67 @@ export default function AttendancePage() {
 
           {/* Cancelled Warning */}
           {isCancelled && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4 flex items-center justify-between">
-              <div className="flex items-center gap-2 text-red-800">
-                <AlertTriangle className="w-5 h-5" />
-                <span>This class was cancelled</span>
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-red-800 text-sm">
+                <AlertTriangle className="w-4 h-4" />
+                <span>Class cancelled</span>
               </div>
               <button
                 onClick={handleUncancelClass}
-                className="text-sm text-red-600 hover:text-red-800 underline"
+                className="text-xs text-red-600 hover:text-red-800 underline"
               >
                 Uncancel
               </button>
             </div>
           )}
 
-          {/* Stats & Actions */}
-          <div className="flex items-center justify-between">
-            <div className="flex gap-4 text-sm">
-              <span className="text-green-600">✓ {presentCount} present</span>
-              <span className="text-yellow-600">⏱ {lateCount} late</span>
-              <span className="text-red-600">✗ {absentCount} absent</span>
+          {/* Search and Filter */}
+          <div className="flex gap-2 mb-4">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search students..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="input-field pl-9 w-full text-sm"
+                style={{ 
+                  color: '#111827',
+                  WebkitTextFillColor: '#111827'
+                }}
+              />
+            </div>
+            <select
+              value={filterGrade}
+              onChange={(e) => setFilterGrade(e.target.value)}
+              className="input-field text-sm"
+            >
+              <option value="all">All Grades</option>
+              <option value="9">Grade 9</option>
+              <option value="10">Grade 10</option>
+              <option value="11">Grade 11</option>
+              <option value="12">Grade 12</option>
+            </select>
+          </div>
+
+          {/* Stats & Quick Actions */}
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+            <div className="flex gap-3">
+              <span className="text-green-600">✓ {presentCount}</span>
+              <span className="text-yellow-600">⏱ {lateCount}</span>
+              <span className="text-red-600">✗ {absentCount}</span>
             </div>
             <div className="flex gap-2">
               <button
                 onClick={markAllPresent}
-                className="text-sm text-primary-600 hover:text-primary-800"
+                className="text-primary-600 hover:text-primary-800"
               >
                 All Present
               </button>
               <span className="text-gray-300">|</span>
               <button
-                onClick={markAllAbsent}
-                className="text-sm text-gray-600 hover:text-gray-800"
-              >
-                All Absent
-              </button>
-              <span className="text-gray-300">|</span>
-              <button
                 onClick={handleCancelClass}
-                className="text-sm text-red-600 hover:text-red-800"
+                className="text-red-600 hover:text-red-800"
                 disabled={isCancelled}
               >
                 Cancel Class
@@ -322,32 +318,71 @@ export default function AttendancePage() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-6">
+      <main className="max-w-4xl mx-auto px-4 py-4">
         <div className="space-y-2">
-          {students.map(student => (
-            <button
+          {filteredStudents.map(student => (
+            <div
               key={student.id}
-              onClick={() => toggleStatus(student.id)}
-              disabled={isCancelled}
-              className={`w-full flex items-center justify-between p-4 rounded-lg border transition-colors ${
-                isCancelled ? 'opacity-50 cursor-not-allowed' : ''
-              } ${getStatusClass(attendance[student.id])}`}
+              className="bg-white p-3 rounded-lg border border-gray-200"
             >
-              <div className="text-left">
-                <p className="font-medium text-gray-900">{student.name}</p>
-                <p className="text-sm text-gray-600">Grade {student.grade}</p>
+              <div className="flex items-center justify-between mb-2">
+                <div>
+                  <p className="font-medium text-gray-900 text-sm">{student.name}</p>
+                  <p className="text-xs text-gray-600">Grade {student.grade}</p>
+                </div>
               </div>
-              {getStatusIcon(attendance[student.id])}
-            </button>
+              
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setStatus(student.id, 'present')}
+                  disabled={isCancelled}
+                  className={`flex-1 py-2 px-3 rounded text-xs font-medium transition-colors ${
+                    attendance[student.id] === 'present'
+                      ? 'bg-green-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  } ${isCancelled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  <Check className="w-4 h-4 mx-auto" />
+                </button>
+                <button
+                  onClick={() => setStatus(student.id, 'late')}
+                  disabled={isCancelled}
+                  className={`flex-1 py-2 px-3 rounded text-xs font-medium transition-colors ${
+                    attendance[student.id] === 'late'
+                      ? 'bg-yellow-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  } ${isCancelled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  <Clock className="w-4 h-4 mx-auto" />
+                </button>
+                <button
+                  onClick={() => setStatus(student.id, 'absent')}
+                  disabled={isCancelled}
+                  className={`flex-1 py-2 px-3 rounded text-xs font-medium transition-colors ${
+                    attendance[student.id] === 'absent'
+                      ? 'bg-red-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  } ${isCancelled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                >
+                  <X className="w-4 h-4 mx-auto" />
+                </button>
+              </div>
+            </div>
           ))}
         </div>
+
+        {filteredStudents.length === 0 && (
+          <div className="text-center py-12">
+            <p className="text-gray-600">No students found</p>
+          </div>
+        )}
 
         {!isCancelled && (
           <div className="sticky bottom-4 mt-6">
             <button
               onClick={handleSave}
               disabled={saving}
-              className="btn-primary w-full flex items-center justify-center gap-2 py-4 text-lg shadow-lg"
+              className="btn-primary w-full flex items-center justify-center gap-2 py-4 text-base shadow-lg"
             >
               <Save className="w-5 h-5" />
               {saving ? 'Saving...' : 'Save Attendance'}
