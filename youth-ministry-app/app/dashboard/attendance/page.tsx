@@ -9,6 +9,7 @@ interface Student {
   id: string;
   name: string;
   grade: number;
+  gender: string;
 }
 
 type AttendanceStatus = 'present' | 'absent' | 'late';
@@ -21,6 +22,7 @@ export default function AttendancePage() {
   const [dateOptions, setDateOptions] = useState<{date: string, label: string}[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterGrade, setFilterGrade] = useState<string>('all');
+  const [filterGender, setFilterGender] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [serviceType, setServiceType] = useState<'friday' | 'sunday'>('friday');
@@ -74,7 +76,7 @@ export default function AttendancePage() {
   const fetchStudents = async () => {
     const { data, error } = await supabase
       .from('students')
-      .select('id, name, grade')
+      .select('id, name, grade, gender')
       .eq('is_active', true)
       .order('grade')
       .order('name');
@@ -198,7 +200,8 @@ export default function AttendancePage() {
   const filteredStudents = students.filter(student => {
     const matchesSearch = student.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesGrade = filterGrade === 'all' || student.grade.toString() === filterGrade;
-    return matchesSearch && matchesGrade;
+    const matchesGender = filterGender === 'all' || student.gender === filterGender;
+    return matchesSearch && matchesGrade && matchesGender;
   });
 
   const presentCount = Object.values(attendance).filter(s => s === 'present').length;
@@ -263,7 +266,7 @@ export default function AttendancePage() {
           )}
 
           {/* Search and Filter */}
-          <div className="grid grid-cols-3 gap-2 mb-4">
+          <div className="grid grid-cols-4 gap-2 mb-4">
             <div className="col-span-2 relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
@@ -290,6 +293,16 @@ export default function AttendancePage() {
               <option value="10">Grade 10</option>
               <option value="11">Grade 11</option>
               <option value="12">Grade 12</option>
+            </select>
+            <select
+              value={filterGender}
+              onChange={(e) => setFilterGender(e.target.value)}
+              className="input-field"
+              style={{ fontSize: '16px' }}
+            >
+              <option value="all">All</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
             </select>
           </div>
 

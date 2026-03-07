@@ -14,6 +14,7 @@ export default function EditStudentPage() {
     name: '',
     phone: '',
     grade: '9',
+    gender: '',
     address: '',
     date_of_birth: '',
     parent_name: '',
@@ -45,6 +46,7 @@ export default function EditStudentPage() {
       name: data.name || '',
       phone: data.phone || '',
       grade: data.grade?.toString() || '9',
+      gender: data.gender || '',
       address: data.address || '',
       date_of_birth: data.date_of_birth || '',
       parent_name: data.parent_name || '',
@@ -64,6 +66,7 @@ export default function EditStudentPage() {
         name: formData.name,
         phone: formData.phone || null,
         grade: parseInt(formData.grade),
+        gender: formData.gender,
         address: formData.address || null,
         date_of_birth: formData.date_of_birth || null,
         parent_name: formData.parent_name || null,
@@ -171,6 +174,22 @@ export default function EditStudentPage() {
                       <option value="12">12th Grade</option>
                     </select>
                   </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Gender *
+                  </label>
+                  <select
+                    required
+                    value={formData.gender}
+                    onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+                    className="input-field w-full"
+                  >
+                    <option value="">Select...</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                  </select>
                 </div>
 
                 <div>
