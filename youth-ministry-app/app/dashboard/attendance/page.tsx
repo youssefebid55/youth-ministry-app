@@ -34,7 +34,7 @@ export default function AttendancePage() {
   }, []);
 
   useEffect(() => {
-    if (selectedDate) {
+    if (selectedDate && students.length > 0) {
       fetchAttendance();
       checkCancellation();
       // Set service type based on day
@@ -42,7 +42,7 @@ export default function AttendancePage() {
       const day = date.getDay();
       setServiceType(day === 5 ? 'friday' : 'sunday');
     }
-  }, [selectedDate]);
+  }, [selectedDate, students.length]);
 
   const generateDateOptions = () => {
     const options: {date: string, label: string}[] = [];
@@ -98,20 +98,22 @@ export default function AttendancePage() {
       .eq('attendance_date', selectedDate);
 
     if (!error && data) {
-      const attendanceMap: Record<string, AttendanceStatus> = {};
-      // Start with all absent
-      students.forEach(s => attendanceMap[s.id] = 'absent');
-      // Then override with actual records
-      data.forEach(record => {
-        if (record.was_late) {
-          attendanceMap[record.student_id] = 'late';
-        } else if (record.was_present) {
-          attendanceMap[record.student_id] = 'present';
-        } else {
-          attendanceMap[record.student_id] = 'absent';
-        }
+      setAttendance(prev => {
+        const newAttendance = {...prev};
+        
+        // Update with records from database
+        data.forEach(record => {
+          if (record.was_late) {
+            newAttendance[record.student_id] = 'late';
+          } else if (record.was_present) {
+            newAttendance[record.student_id] = 'present';
+          } else {
+            newAttendance[record.student_id] = 'absent';
+          }
+        });
+        
+        return newAttendance;
       });
-      setAttendance(attendanceMap);
     }
   };
 
