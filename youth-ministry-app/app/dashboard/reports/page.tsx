@@ -28,21 +28,9 @@ export default function ReportsPage() {
 
   const serviceType = getServiceType(selectedDate);
 
-  // TEMPORARILY DISABLED FOR UI DEVELOPMENT
-  // useEffect(() => {
-  //   checkAuth();
-  // }, []);
-
   useEffect(() => {
     fetchStudents();
   }, []);
-
-  // const checkAuth = async () => {
-  //   const { data: { session } } = await supabase.auth.getSession();
-  //   if (!session) {
-  //     router.push('/login');
-  //   }
-  // };
 
   const fetchStudents = async () => {
     const { data, error } = await supabase
@@ -61,7 +49,7 @@ export default function ReportsPage() {
   const generateReport = async () => {
     const { data: attendance, error } = await supabase
       .from('attendance_records')
-      .select('student_id, status')
+      .select('student_id, was_present, was_late')
       .eq('attendance_date', selectedDate);
 
     if (error) {
@@ -72,17 +60,20 @@ export default function ReportsPage() {
     // Separate students by status
     const attendanceMap = new Map();
     attendance?.forEach(record => {
-      attendanceMap.set(record.student_id, record.status);
+      attendanceMap.set(record.student_id, { 
+        was_present: record.was_present, 
+        was_late: record.was_late 
+      });
     });
 
     const attendedStudents: { name: string; status: string }[] = [];
 
     students.forEach(student => {
-      const status = attendanceMap.get(student.id);
-      if (status === 'present' || status === 'late') {
+      const record = attendanceMap.get(student.id);
+      if (record?.was_present) {
         attendedStudents.push({
           name: student.name,
-          status: status
+          status: record.was_late ? 'late' : 'present'
         });
       }
     });
