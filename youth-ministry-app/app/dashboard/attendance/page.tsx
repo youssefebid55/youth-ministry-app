@@ -19,7 +19,6 @@ export default function AttendancePage() {
   const [students, setStudents] = useState<Student[]>([]);
   const [attendance, setAttendance] = useState<Record<string, AttendanceStatus>>({});
   const [selectedDate, setSelectedDate] = useState('');
-  const [dateOptions, setDateOptions] = useState<{date: string, label: string}[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterGrade, setFilterGrade] = useState<string>('all');
   const [filterGender, setFilterGender] = useState<string>('all');
@@ -28,8 +27,15 @@ export default function AttendancePage() {
   const [serviceType, setServiceType] = useState<'friday' | 'sunday'>('friday');
   const [isCancelled, setIsCancelled] = useState(false);
 
+  // Get today's date in EST timezone
+  const getTodayEST = () => {
+    const now = new Date();
+    const estDate = new Date(now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+    return estDate.toISOString().split('T')[0];
+  };
+
   useEffect(() => {
-    generateDateOptions();
+    setSelectedDate(getTodayEST());
     fetchStudents();
   }, []);
 
@@ -43,35 +49,6 @@ export default function AttendancePage() {
       setServiceType(day === 5 ? 'friday' : 'sunday');
     }
   }, [selectedDate, students.length]);
-
-  const generateDateOptions = () => {
-    const options: {date: string, label: string}[] = [];
-    const today = new Date();
-    
-    // Generate last 8 Fridays and Sundays
-    for (let i = 0; i < 60; i++) {
-      const date = new Date(today);
-      date.setDate(today.getDate() - i);
-      const day = date.getDay();
-      
-      // 5 = Friday, 0 = Sunday
-      if (day === 5 || day === 0) {
-        const dateStr = date.toISOString().split('T')[0];
-        const dayName = day === 5 ? 'Fri' : 'Sun';
-        const label = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        options.push({ date: dateStr, label: `${dayName} ${label}` });
-        
-        if (options.length >= 8) break;
-      }
-    }
-
-    setDateOptions(options);
-    
-    // Default to most recent Friday or Sunday
-    if (options.length > 0) {
-      setSelectedDate(options[0].date);
-    }
-  };
 
   const fetchStudents = async () => {
     const { data, error } = await supabase
@@ -235,20 +212,20 @@ export default function AttendancePage() {
           <h1 className="text-2xl font-bold text-gray-900 mb-4">Take Attendance</h1>
 
           {/* Date Selection */}
-          <div className="flex flex-wrap gap-2 mb-4">
-            {dateOptions.map(option => (
-              <button
-                key={option.date}
-                onClick={() => setSelectedDate(option.date)}
-                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  selectedDate === option.date
-                    ? 'bg-primary-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                {option.label}
-              </button>
-            ))}
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Date
+            </label>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="input-field w-full"
+              style={{ fontSize: '16px' }}
+            />
+            <p className="text-sm text-gray-600 mt-1">
+              {serviceType === 'friday' ? '📖 Friday Bible Study' : '⛪ Sunday School'}
+            </p>
           </div>
 
           {/* Cancelled Warning */}
